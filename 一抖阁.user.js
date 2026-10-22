@@ -1,9 +1,35 @@
 // ==UserScript==
 // @name         一抖阁 - 免费看完整视频（终极版）
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      4.2
-// @description  绕过试看与每日次数限制，自动提取视频直链，拦截广告与弹窗，支持倍速/画中画/键盘快捷键/自动连播下一集/原画高速下载（已适配 yidouge.vip 新域名）
+// @version      4.3
+// @description  绕过试看与每日次数限制，自动提取视频直链，拦截广告与弹窗，支持倍速/画中画/键盘快捷键/自动连播下一集/原画高速下载（已修复分类列表误注入与 yidouge.vip 新域名适配）
 // @author       Niklaus88
+// @match        *://yidouge.vip/video/*
+// @match        *://*.yidouge.vip/video/*
+// @match        *://yidouge.com/video/*
+// @match        *://*.yidouge.com/video/*
+// @match        *://yidouge.cc/video/*
+// @match        *://*.yidouge.cc/video/*
+// @match        *://yidouge.me/video/*
+// @match        *://*.yidouge.me/video/*
+// @match        *://yidouge.net/video/*
+// @match        *://*.yidouge.net/video/*
+// @match        *://yidouge.xyz/video/*
+// @match        *://*.yidouge.xyz/video/*
+// @match        *://yidouge.top/video/*
+// @match        *://*.yidouge.top/video/*
+// @match        *://yidouge.tv/video/*
+// @match        *://*.yidouge.tv/video/*
+// @match        *://yidouge.org/video/*
+// @match        *://*.yidouge.org/video/*
+// @match        *://yidouge.app/video/*
+// @match        *://*.yidouge.app/video/*
+// @match        *://yidouge.fun/video/*
+// @match        *://*.yidouge.fun/video/*
+// @match        *://yidouge.live/video/*
+// @match        *://*.yidouge.live/video/*
+// @match        *://yidouge.club/video/*
+// @match        *://*.yidouge.club/video/*
 // @match        *://yidouge.vip/*
 // @match        *://*.yidouge.vip/*
 // @match        *://yidouge.com/*
@@ -18,18 +44,6 @@
 // @match        *://*.yidouge.xyz/*
 // @match        *://yidouge.top/*
 // @match        *://*.yidouge.top/*
-// @match        *://yidouge.tv/*
-// @match        *://*.yidouge.tv/*
-// @match        *://yidouge.org/*
-// @match        *://*.yidouge.org/*
-// @match        *://yidouge.app/*
-// @match        *://*.yidouge.app/*
-// @match        *://yidouge.fun/*
-// @match        *://*.yidouge.fun/*
-// @match        *://yidouge.live/*
-// @match        *://*.yidouge.live/*
-// @match        *://yidouge.club/*
-// @match        *://*.yidouge.club/*
 // @icon         https://yidouge.vip/favicon.ico
 // @grant        none
 // @run-at       document-start
@@ -37,6 +51,12 @@
 
 (function() {
     'use strict';
+
+    // 判断是否处于单视频播放详情页（防止在分类/合集/首页列表中错误注入播放器）
+    function isVideoPage() {
+        return window.location.pathname.indexOf('/video/') !== -1 ||
+               Boolean(document.querySelector('[data-video-player-wrap], .single-video__player'));
+    }
 
     // 动态获取当前站点引用的 R2 基础存储路径，默认回退至 r2.yidouge.com
     function getR2Base() {
@@ -322,9 +342,14 @@
     }
 
     // ============================================================
-    // 3. 多策略高精准视频源解析
+    // 3. 多策略高精准视频源解析（仅在视频详情页运行）
     // ============================================================
     function getVideoInfo() {
+        // 关键防护：非视频播放页面直接返回 null，防止分类列表页（如 /v2/ai短剧/）被误提取
+        if (!isVideoPage()) {
+            return null;
+        }
+
         let videoUrl = '';
         let posterUrl = '';
         let title = '';
@@ -337,7 +362,7 @@
             nextUrl = nextEl.getAttribute('data-next-url') || nextEl.getAttribute('href') || '';
         }
 
-        // 策略1: 从 wrap DOM 的 data-video-url 获取
+        // 策略1: 从 wrap DOM 的 data-video-url 获取（最精准）
         const wrap = document.querySelector('[data-video-player-wrap], .single-video__player');
         if (wrap) {
             // 立即将原生试看秒数清零，防止原生脚本并发挂载限制监听器
@@ -351,7 +376,7 @@
             }
         }
 
-        // 获取视频标题
+        // 获取视频标题（仅在视频详情页有效）
         const h1 = document.querySelector('h1');
         if (h1 && h1.textContent.trim()) {
             title = h1.textContent.trim();
@@ -406,24 +431,24 @@
             }
         }
 
-        // 策略4: 基于真实页面标题构造（解决大小写及编码问题）
-        const r2Base = getR2Base();
-        if (!videoUrl && title) {
-            const cleanTitle = title.replace(/[《》]/g, '').trim();
-            if (cleanTitle) {
-                videoUrl = r2Base + encodeURI(cleanTitle) + '.mp4';
-                source = '视频真实标题构造';
+        // 策略4与策略5（仅在确认处于 /video/ 页面时才允许基于标题/slug 猜测，防止列表页盲目拼接）
+        if (!videoUrl && window.location.pathname.indexOf('/video/') !== -1) {
+            const r2Base = getR2Base();
+            if (title) {
+                const cleanTitle = title.replace(/[《》]/g, '').trim();
+                if (cleanTitle) {
+                    videoUrl = r2Base + encodeURI(cleanTitle) + '.mp4';
+                    source = '视频真实标题构造';
+                }
             }
-        }
-
-        // 策略5: 兜底方案 - 从当前页面 URL slug 构造
-        if (!videoUrl) {
-            const path = window.location.pathname;
-            const slug = path.replace(/^\/video\//, '').replace(/\/$/, '');
-            if (slug) {
-                const decoded = decodeURIComponent(slug);
-                videoUrl = r2Base + encodeURI(decoded) + '.mp4';
-                source = 'URL slug 构造';
+            if (!videoUrl) {
+                const path = window.location.pathname;
+                const slug = path.replace(/^\/video\//, '').replace(/\/$/, '');
+                if (slug) {
+                    const decoded = decodeURIComponent(slug);
+                    videoUrl = r2Base + encodeURI(decoded) + '.mp4';
+                    source = 'URL slug 构造';
+                }
             }
         }
 
@@ -737,34 +762,37 @@
     function trySetup() {
         skipAgeGate();
 
+        // 关键防护：非视频播放页面绝不执行播放器初始化与 DOM 注入
+        if (!isVideoPage()) {
+            return false;
+        }
+
         if (document.getElementById('ydg-unlocked-video')) {
             return true;
         }
 
         const info = getVideoInfo();
-        if (!info) return false;
+        if (!info || !info.url) return false;
 
-        let wrap = document.querySelector('[data-video-player-wrap], .single-video__player');
-        if (!wrap) {
-            const main = document.querySelector('.single-video') ||
-                         document.querySelector('main') ||
-                         document.querySelector('.site-main');
-            if (main) {
-                wrap = document.createElement('div');
-                wrap.className = 'single-video__player';
-                const title = document.querySelector('h1') || main.firstChild;
-                if (title && title.parentNode) {
-                    title.parentNode.insertBefore(wrap, title);
-                } else {
-                    main.insertBefore(wrap, main.firstChild);
-                }
-            }
-        }
-
+        // 仅在原站真实播放器容器存在时才接管注入
+        const wrap = document.querySelector('[data-video-player-wrap], .single-video__player');
         if (wrap) {
             createPlayer(wrap, info);
             return true;
         }
+
+        // 兜底方案：仅当处于 /video/ 详情页且有 .single-video 时才创建容器，严禁向分类列表页 main 注入！
+        if (window.location.pathname.indexOf('/video/') !== -1) {
+            const singleVideo = document.querySelector('.single-video');
+            if (singleVideo) {
+                const newWrap = document.createElement('div');
+                newWrap.className = 'single-video__player';
+                singleVideo.insertBefore(newWrap, singleVideo.firstChild);
+                createPlayer(newWrap, info);
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -772,6 +800,11 @@
         injectCSS();
         skipAgeGate();
         cleanStorage();
+
+        // 只有视频页才进入安装播放器逻辑
+        if (!isVideoPage()) {
+            return;
+        }
 
         // 立即尝试一次
         if (trySetup()) return;
