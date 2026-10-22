@@ -3,7 +3,7 @@
 // @namespace    https://github.com/Niklaus88/UserScript
 // @version      1.2.0
 // @description  彻底解锁古文岛 (guwendao.net) 和古诗文网 (gushiwen.cn) 的会员限制：自动展开译文/注释/赏析/拼音全文、解除折叠与“会员解锁全文”限制、拦截付费弹窗与登录跳转拦截、保护真实登录不掉线、解除音频15秒试听限制、解锁背诵与拓展内容等。
-// @author       Niklaus88
+// @author       Niklaus
 // @match        *://*.guwendao.net/*
 // @match        *://*.gushiwen.cn/*
 // @match        *://*.gushiwen.org/*
