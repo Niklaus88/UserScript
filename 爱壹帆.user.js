@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         爱壹帆 1080P 高清换源播放 (方案B)
+// @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.0.0
+// @version      2.1.0
 // @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，一键切换极清画质，免除VIP限制与画质封锁，去广告并支持多线路自由切换
 // @author       Niklaus88
 // @match        https://www.yfsp.tv/*
@@ -27,28 +27,28 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.0.0 方案B) - 真1080P第三方高清聚合源引擎`);
+    console.log(`${TAG} 脚本已启动 (v2.1.0) - 真1080P第三方高清聚合源引擎`);
 
     // =========================================================================
     // 0. 线路配置 (支持多源自动容灾检索)
     // =========================================================================
     const SOURCES = [
         { id: 'bfzy', name: '暴风线路 (1080P极清)', api: 'https://bfzyapi.com/api.php/provide/vod/?ac=detail&wd=' },
-        { id: 'hhzy', name: '红牛线路 (1080P高清)', api: 'https://hhzyapi.com/api.php/provide/vod/?ac=detail&wd=' },
         { id: 'subo', name: '速播线路 (1080P高清)', api: 'https://subocaiji.com/api.php/provide/vod/?ac=detail&wd=' },
+        { id: 'hhzy', name: '红牛线路 (1080P高清)', api: 'https://hhzyapi.com/api.php/provide/vod/?ac=detail&wd=' },
         { id: 'lzi',  name: '量子线路 (备用高清)', api: 'https://cj.lziapi.com/api.php/provide/vod/?ac=detail&wd=' }
     ];
 
     // 全局当前状态
     let currentVideoTitle = '';
-    let currentEpisodeNum = '';
+    let currentEpisodeNum = '1';
     let artInstance = null;
     let isHdActive = false;
-    let currentMatchedList = []; // 当前剧集的第三方播放列表 [{ source, name, episodes: [{ num, title, url }] }]
+    let currentMatchedList = [];
     let selectedSourceIndex = 0;
 
     // =========================================================================
-    // 1. 数据拦截：从后端请求中无损捕获剧名与集数信息 + 清理官方广告
+    // 1. 数据拦截：从后端请求中捕获剧名、集数 + 清理官方广告
     // =========================================================================
     function handlePlayResponse(json) {
         if (!json || !json.data) return;
@@ -59,16 +59,15 @@
         items.forEach(info => {
             if (!info || typeof info !== 'object') return;
 
-            // 提取集数
             if (info.mediaTitle) {
                 const epMatch = String(info.mediaTitle).match(/\d+/);
                 if (epMatch) {
-                    currentEpisodeNum = epMatch[0];
-                    console.log(`${TAG} 捕获当前播放集数: 第 ${currentEpisodeNum} 集`);
+                    currentEpisodeNum = String(parseInt(epMatch[0], 10));
+                    console.log(`${TAG} 接口捕获当前播放集数: 第 ${currentEpisodeNum} 集`);
                 }
             }
 
-            // 去广告
+            // 去除爱壹帆官方片头广告
             if (Array.isArray(info.startData)) info.startData = [];
             if (info.maxFrontAds) info.maxFrontAds = 0;
             if (Array.isArray(info.flvPathList)) {
@@ -77,21 +76,23 @@
             }
         });
 
-        // 触发换源检查
-        scheduleSourceCheck();
+        scheduleRefresh();
     }
 
     function handleDetailResponse(json) {
         if (!json || !json.data) return;
         const info = Array.isArray(json.data.info) && json.data.info[0] ? json.data.info[0] : json.data;
         if (info && (info.title || info.name || info.videoName)) {
-            currentVideoTitle = cleanTitle(info.title || info.name || info.videoName);
-            console.log(`${TAG} 捕获当前影视剧名: ${currentVideoTitle}`);
-            scheduleSourceCheck();
+            const raw = info.title || info.name || info.videoName;
+            const parsed = parseTitleAndEp(raw);
+            if (parsed.title) currentVideoTitle = parsed.title;
+            if (parsed.ep) currentEpisodeNum = parsed.ep;
+            console.log(`${TAG} 接口捕获剧名: [${currentVideoTitle}], 集数: [${currentEpisodeNum}]`);
+            scheduleRefresh();
         }
     }
 
-    // 劫持 XMLHttpRequest
+    // 劫持 XHR
     try {
         const OrigXHR = win.XMLHttpRequest;
         const origOpen = OrigXHR.prototype.open;
@@ -120,7 +121,7 @@
         };
     } catch (e) {}
 
-    // 劫持 fetch
+    // 劫持 Fetch
     try {
         const origFetch = win.fetch;
         if (typeof origFetch === 'function') {
@@ -141,43 +142,59 @@
     } catch (e) {}
 
     // =========================================================================
-    // 2. 剧名清洗与 DOM 智能兜底嗅探
+    // 2. 剧名与集数精准提取算法 (完美解析如 "沧元图 01", "凡人修仙传 196")
     // =========================================================================
-    function cleanTitle(raw) {
-        if (!raw) return '';
-        return raw
+    function parseTitleAndEp(raw) {
+        if (!raw) return { title: '', ep: '1' };
+        let text = raw
             .replace(/-\s*爱壹帆.*/i, '')
             .replace(/_爱壹帆.*/i, '')
-            .replace(/第\s*\d+\s*[集话期].*/i, '')
-            .replace(/更新至.*/i, '')
+            .replace(/在线观看.*/i, '')
             .replace(/HD|BD|4K|1080P/gi, '')
             .replace(/[\[\(【（].*?[\]\)】）]/g, '')
             .trim();
+
+        let ep = '';
+        // 模式 1: "第xx集 / 第xx话 / 第xx期"
+        const m1 = text.match(/第\s*(\d+)\s*[集话期]/);
+        if (m1) {
+            ep = m1[1];
+            text = text.replace(/第\s*\d+\s*[集话期].*/, '').trim();
+        } else {
+            // 模式 2: 末尾空格加数字，如 "沧元图 01"、"凡人修仙传 196"
+            const m2 = text.match(/(?:^|\s+|_)(\d{1,4})$/);
+            if (m2) {
+                ep = m2[1];
+                text = text.replace(/(?:^|\s+|_)\d{1,4}$/, '').trim();
+            }
+        }
+
+        return {
+            title: text.trim(),
+            ep: ep ? String(parseInt(ep, 10)) : ''
+        };
     }
 
     function detectVideoInfoFromDOM() {
+        // 1. 抓取剧名
         if (!currentVideoTitle) {
             const titleEl = document.querySelector('.title, .video-name, .n-media-title, h1');
-            if (titleEl && titleEl.textContent) {
-                currentVideoTitle = cleanTitle(titleEl.textContent);
-            } else if (document.title) {
-                currentVideoTitle = cleanTitle(document.title);
-            }
+            const raw = titleEl ? titleEl.textContent : document.title;
+            const parsed = parseTitleAndEp(raw);
+            if (parsed.title) currentVideoTitle = parsed.title;
+            if (parsed.ep && (!currentEpisodeNum || currentEpisodeNum === '1')) currentEpisodeNum = parsed.ep;
         }
-        if (!currentEpisodeNum) {
-            const activeEp = document.querySelector('.player-media-list .active, .episode-item.active, .ep-item.active');
-            if (activeEp && activeEp.textContent) {
-                const m = activeEp.textContent.match(/\d+/);
-                if (m) currentEpisodeNum = m[0];
-            } else {
-                const m = document.title.match(/第\s*(\d+)\s*[集话期]/);
-                if (m) currentEpisodeNum = m[1];
-            }
+
+        // 2. 抓取集数
+        const activeEp = document.querySelector('.player-media-list .active, .episode-item.active, .ep-item.active');
+        if (activeEp && activeEp.textContent) {
+            const m = activeEp.textContent.match(/\d+/);
+            if (m) currentEpisodeNum = String(parseInt(m[0], 10));
         }
     }
 
     // =========================================================================
-    // 3. 第三方影视源检索 API 模块 (支持跨域请求 GM_xmlhttpRequest)
+    // 3. 第三方影视源检索与切片地址规范化
     // =========================================================================
     function requestApi(url) {
         return new Promise((resolve, reject) => {
@@ -185,7 +202,7 @@
                 GM_xmlhttpRequest({
                     method: 'GET',
                     url: url,
-                    timeout: 6000,
+                    timeout: 7000,
                     onload: res => {
                         try {
                             resolve(JSON.parse(res.responseText));
@@ -197,7 +214,6 @@
                     ontimeout: () => reject(new Error('Timeout'))
                 });
             } else {
-                // 原生 fetch 兜底
                 fetch(url)
                     .then(r => r.json())
                     .then(resolve)
@@ -206,10 +222,20 @@
         });
     }
 
-    // 检索所有线路中匹配当前剧集的高清 m3u8
-    async function searchHighDefinitionStreams(title, targetEpNum) {
-        if (!title) return null;
-        console.log(`${TAG} 开始多源检索: 剧名 = [${title}], 目标集数 = [${targetEpNum || 1}]`);
+    function normalizeM3u8Url(url) {
+        if (!url) return '';
+        url = url.trim();
+        if (url.includes('.m3u8')) return url;
+        // 针对部分采集源 (如速播/红牛) 补全 index.m3u8
+        if (url.includes('xluuss.com') || url.includes('hhuus.com') || url.includes('bfllvip.com')) {
+            return url.replace(/\/+$/, '') + '/index.m3u8';
+        }
+        return url;
+    }
+
+    async function searchHighDefinitionStreams(title) {
+        if (!title) return [];
+        console.log(`${TAG} 正在全网检索 1080P 片源: [${title}]`);
 
         const matchedSources = [];
 
@@ -218,33 +244,33 @@
                 const data = await requestApi(src.api + encodeURIComponent(title));
                 if (!data || !data.list || !data.list.length) continue;
 
-                // 在返回的列表中寻找最贴近的影片
+                // 优先精准匹配剧名，没有则模糊匹配
                 const matchedVod = data.list.find(vod => {
-                    const vName = cleanTitle(vod.vod_name);
+                    const vName = parseTitleAndEp(vod.vod_name).title;
+                    return vName === title;
+                }) || data.list.find(vod => {
+                    const vName = parseTitleAndEp(vod.vod_name).title;
                     return vName.includes(title) || title.includes(vName);
                 }) || data.list[0];
 
                 if (!matchedVod || !matchedVod.vod_play_url) continue;
 
-                // 解析播放地址列表
-                // 格式如: 第01集$http://xxx.m3u8#第02集$http://yyy.m3u8$$$线路2
-                const parsedPlaylists = [];
                 const groups = matchedVod.vod_play_url.split('$$$');
+                const parsedPlaylists = [];
 
                 for (const g of groups) {
                     const epList = [];
                     const eps = g.split('#');
                     for (const ep of eps) {
                         const parts = ep.split('$');
-                        if (parts.length >= 2 && parts[1].includes('.m3u8')) {
+                        if (parts.length >= 2) {
                             const nameStr = parts[0];
                             const numMatch = nameStr.match(/\d+/);
-                            const num = numMatch ? numMatch[0] : '';
+                            const num = numMatch ? String(parseInt(numMatch[0], 10)) : '';
                             epList.push({
-                                raw: ep,
                                 title: nameStr,
                                 num: num,
-                                url: parts[1].trim()
+                                url: normalizeM3u8Url(parts[1])
                             });
                         }
                     }
@@ -252,19 +278,16 @@
                 }
 
                 if (parsedPlaylists.length > 0) {
-                    // 取包含最多集数的一组
                     parsedPlaylists.sort((a, b) => b.length - a.length);
-                    const bestList = parsedPlaylists[0];
-
                     matchedSources.push({
                         sourceId: src.id,
                         sourceName: src.name,
                         vodName: matchedVod.vod_name,
-                        episodes: bestList
+                        episodes: parsedPlaylists[0]
                     });
                 }
             } catch (err) {
-                console.warn(`${TAG} 线路 [${src.name}] 检索失败:`, err);
+                console.warn(`${TAG} 线路 [${src.name}] 检索出错:`, err);
             }
         }
 
@@ -272,35 +295,73 @@
     }
 
     // =========================================================================
-    // 4. UI 界面注入：浮动换源按钮与真 1080P 高清播放层
+    // 4. 定位爱壹帆视频播放容器 (getBoundingClientRect 准确定位)
     // =========================================================================
-    function injectUI() {
-        if (document.getElementById('yfsp-hd-toolbar')) return;
+    function findVideoContainer() {
+        const video = document.querySelector('video:not(.artplayer-video):not(.yfsp-custom-video)');
+        if (!video) return null;
 
-        // 查找播放器容器
-        const video = document.querySelector('video');
-        const playerContainer = video ? (video.closest('.aa-videoplayer-wrap, .video-player, .video-box') || video.parentElement) : null;
-        if (!playerContainer) return;
-
-        // 确保容器为相对定位
-        const computedPos = window.getComputedStyle(playerContainer).position;
-        if (computedPos === 'static') {
-            playerContainer.style.position = 'relative';
+        // 尝试寻找带有播放器特征的容器
+        let container = video.closest('.publicplay, .video-player, .aa-videoplayer-wrap, .video-box');
+        if (!container) {
+            // 向上回溯宽高符合播放器特征的父级
+            let el = video.parentElement;
+            while (el && el !== document.body) {
+                const rect = el.getBoundingClientRect();
+                if (rect.width >= 320 && rect.height >= 180) {
+                    container = el;
+                    break;
+                }
+                el = el.parentElement;
+            }
         }
 
-        // 1. 创建浮动控制工具条
-        const toolbar = document.createElement('div');
-        toolbar.id = 'yfsp-hd-toolbar';
-        toolbar.className = 'yfsp-hd-toolbar';
-        toolbar.innerHTML = `
-            <button id="yfsp-hd-toggle-btn" class="yfsp-hd-btn">
-                <span class="hd-icon">⚡</span>
-                <span class="hd-text">切换真 1080P 蓝光</span>
-            </button>
-        `;
-        playerContainer.appendChild(toolbar);
+        if (container) {
+            const pos = window.getComputedStyle(container).position;
+            if (pos === 'static') {
+                container.style.position = 'relative';
+            }
+        }
 
-        // 2. 创建 1080P 独立播放器遮罩层
+        return container || video.parentElement;
+    }
+
+    // =========================================================================
+    // 5. UI 注入与交互处理
+    // =========================================================================
+    function injectUI() {
+        const container = findVideoContainer();
+        if (!container) return;
+
+        // 1. 注入悬浮换源胶囊按钮
+        let toolbar = document.getElementById('yfsp-hd-toolbar');
+        if (!toolbar) {
+            toolbar = document.createElement('div');
+            toolbar.id = 'yfsp-hd-toolbar';
+            toolbar.className = 'yfsp-hd-toolbar';
+            toolbar.innerHTML = `
+                <button id="yfsp-hd-toggle-btn" class="yfsp-hd-btn" type="button">
+                    <span class="hd-icon">⚡</span>
+                    <span class="hd-text">切换真 1080P 蓝光</span>
+                </button>
+            `;
+            container.appendChild(toolbar);
+
+            const toggleBtn = toolbar.querySelector('#yfsp-hd-toggle-btn');
+            toggleBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                if (isHdActive) {
+                    deactivateHdPlayer();
+                } else {
+                    activateHdPlayer();
+                }
+            });
+        } else if (toolbar.parentElement !== container) {
+            container.appendChild(toolbar);
+        }
+
+        // 2. 注入 1080P 高清播放遮罩层
         let overlay = document.getElementById('yfsp-hd-overlay');
         if (!overlay) {
             overlay = document.createElement('div');
@@ -315,67 +376,76 @@
                     </div>
                     <div class="yfsp-hd-actions">
                         <select id="yfsp-hd-source-select" class="yfsp-hd-select"></select>
-                        <button id="yfsp-hd-close-btn" class="yfsp-hd-close" title="返回爱壹帆原版">✕ 返回原版(576P)</button>
+                        <button id="yfsp-hd-close-btn" class="yfsp-hd-close" type="button" title="返回爱壹帆原版">✕ 返回原版(576P)</button>
                     </div>
                 </div>
-                <div id="yfsp-artplayer-container" class="yfsp-artplayer-container"></div>
+                <div id="yfsp-artplayer-container" class="yfsp-artplayer-container">
+                    <div id="yfsp-hd-loading-box" class="yfsp-hd-loading">
+                        <div class="yfsp-hd-spinner"></div>
+                        <div id="yfsp-hd-loading-text" class="yfsp-hd-loading-msg">正在全网检索 1080P 蓝光片源...</div>
+                    </div>
+                </div>
             `;
-            playerContainer.appendChild(overlay);
+            container.appendChild(overlay);
 
             // 绑定关闭按钮
-            document.getElementById('yfsp-hd-close-btn').addEventListener('click', deactivateHdPlayer);
+            overlay.querySelector('#yfsp-hd-close-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                deactivateHdPlayer();
+            });
 
             // 绑定线路切换
-            document.getElementById('yfsp-hd-source-select').addEventListener('change', (e) => {
+            overlay.querySelector('#yfsp-hd-source-select').addEventListener('change', (e) => {
                 selectedSourceIndex = parseInt(e.target.value) || 0;
                 playCurrentEpisodeInHd();
             });
+        } else if (overlay.parentElement !== container) {
+            container.appendChild(overlay);
         }
-
-        // 绑定切换按钮
-        document.getElementById('yfsp-hd-toggle-btn').addEventListener('click', () => {
-            if (isHdActive) {
-                deactivateHdPlayer();
-            } else {
-                activateHdPlayer();
-            }
-        });
     }
 
-    // 激活真 1080P 播放器
+    // 点击激活 1080P
     async function activateHdPlayer() {
+        injectUI();
         const overlay = document.getElementById('yfsp-hd-overlay');
         const toggleBtn = document.getElementById('yfsp-hd-toggle-btn');
         if (!overlay) return;
 
         isHdActive = true;
         overlay.style.display = 'flex';
-        if (toggleBtn) toggleBtn.classList.add('active');
-
-        // 暂停爱壹帆原生视频
-        const nativeVideo = document.querySelector('video:not(.artplayer-video)');
-        if (nativeVideo) nativeVideo.pause();
-
-        showToast('正在为您调取 1080P 蓝光无损片源...');
-
-        // 嗅探信息并检索
-        detectVideoInfoFromDOM();
-        const titleText = document.getElementById('yfsp-hd-title-text');
-        if (titleText) {
-            titleText.textContent = `${currentVideoTitle || '当前剧集'} (第 ${currentEpisodeNum || '1'} 集)`;
+        if (toggleBtn) {
+            toggleBtn.classList.add('active');
+            toggleBtn.querySelector('.hd-text').textContent = '1080P 蓝光播放中';
         }
 
-        const matchedSources = await searchHighDefinitionStreams(currentVideoTitle, currentEpisodeNum);
+        // 暂停原生视频
+        const nativeVideo = document.querySelector('video:not(.artplayer-video):not(.yfsp-custom-video)');
+        if (nativeVideo) {
+            nativeVideo.pause();
+        }
+
+        // 提取剧名与集数
+        detectVideoInfoFromDOM();
+        const title = currentVideoTitle || '当前剧集';
+        const ep = currentEpisodeNum || '1';
+
+        const titleText = document.getElementById('yfsp-hd-title-text');
+        if (titleText) titleText.textContent = `${title} (第 ${ep} 集)`;
+
+        showLoading(`正在为您检索《${title}》第 ${ep} 集真 1080P 切片...`);
+
+        // 开始检索
+        const matchedSources = await searchHighDefinitionStreams(title);
+
         if (!matchedSources || matchedSources.length === 0) {
-            showToast('⚠️ 未能在高清库中找到该片源，已切回原版');
-            deactivateHdPlayer();
+            showErrorUI(`未能在第三方高清库中检索到《${title}》`, title);
             return;
         }
 
         currentMatchedList = matchedSources;
         selectedSourceIndex = 0;
 
-        // 填充线路下拉框
+        // 填充线路下拉
         const select = document.getElementById('yfsp-hd-source-select');
         if (select) {
             select.innerHTML = matchedSources.map((s, idx) => `
@@ -383,126 +453,181 @@
             `).join('');
         }
 
-        // 开始播放
         playCurrentEpisodeInHd();
     }
 
-    // 播放当前集数的 1080P 流
+    // 播放指定集数
     function playCurrentEpisodeInHd() {
         if (!currentMatchedList || !currentMatchedList.length) return;
         const currentSource = currentMatchedList[selectedSourceIndex] || currentMatchedList[0];
 
-        // 寻找匹配的集数
-        const epNum = currentEpisodeNum || '1';
-        let matchedEp = currentSource.episodes.find(e => e.num === String(epNum));
+        const targetEp = currentEpisodeNum || '1';
+        let matchedEp = currentSource.episodes.find(e => e.num === targetEp);
+
+        // 容错：如果编号未匹配，尝试按单集标题包含或序号索引
+        if (!matchedEp) {
+            matchedEp = currentSource.episodes.find(e => e.title.includes(targetEp));
+        }
         if (!matchedEp && currentSource.episodes.length > 0) {
-            // 如果单集编号没对上，尝试按索引匹配
-            const idx = parseInt(epNum) - 1;
+            const idx = parseInt(targetEp, 10) - 1;
             matchedEp = currentSource.episodes[idx] || currentSource.episodes[0];
         }
 
-        if (!matchedEp) {
-            showToast('未找到当前集数的高清切片');
+        if (!matchedEp || !matchedEp.url) {
+            showErrorUI(`在 [${currentSource.sourceName}] 中未找到第 ${targetEp} 集切片`, currentVideoTitle);
             return;
         }
 
-        console.log(`${TAG} 加载 1080P 切片流: [${currentSource.sourceName}] ${matchedEp.title} -> ${matchedEp.url}`);
-        showToast(`已成功切换: ${currentSource.sourceName} (真1080P)`);
+        console.log(`${TAG} 最终播放流: [${currentSource.sourceName}] ${matchedEp.title} -> ${matchedEp.url}`);
 
-        renderArtplayer(matchedEp.url);
+        const titleText = document.getElementById('yfsp-hd-title-text');
+        if (titleText) titleText.textContent = `${currentVideoTitle} - ${matchedEp.title} [真1080P]`;
+
+        renderPlayer(matchedEp.url);
     }
 
-    // 退出 1080P 播放器
+    // 渲染播放器 (Artplayer 优先，原生 Hls 自动兜底)
+    function renderPlayer(m3u8Url) {
+        const container = document.getElementById('yfsp-artplayer-container');
+        if (!container) return;
+
+        // 清理旧播放器
+        if (artInstance) {
+            try { artInstance.destroy(); } catch (e) {}
+            artInstance = null;
+        }
+        container.innerHTML = '';
+
+        // 方式 1: 优先使用 Artplayer
+        if (typeof Artplayer !== 'undefined') {
+            try {
+                artInstance = new Artplayer({
+                    container: container,
+                    url: m3u8Url,
+                    type: 'm3u8',
+                    customType: {
+                        m3u8: function (video, url, art) {
+                            if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+                                if (art.hls) art.hls.destroy();
+                                const hls = new Hls({ enableWorker: true, lowLatencyMode: true });
+                                hls.loadSource(url);
+                                hls.attachMedia(video);
+                                art.hls = hls;
+                                art.on('destroy', () => hls.destroy());
+                            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                                video.src = url;
+                            } else {
+                                art.notice.show = '浏览器不支持播放该格式视频';
+                            }
+                        }
+                    },
+                    theme: '#ffb400',
+                    autoplay: true,
+                    autoSize: true,
+                    playbackRate: true,
+                    aspectRatio: true,
+                    setting: true,
+                    hotkey: true,
+                    pip: true,
+                    fullscreen: true,
+                    fullscreenWeb: true,
+                    miniProgressBar: true,
+                    playsInline: true,
+                    autoPlayback: true
+                });
+                return;
+            } catch (err) {
+                console.warn(`${TAG} Artplayer 初始化异常，降级为原生 Hls 播放:`, err);
+            }
+        }
+
+        // 方式 2: 原生 HTML5 Video + Hls.js 坚固兜底
+        console.log(`${TAG} 使用原生 HTML5 Video + Hls 渲染`);
+        const videoEl = document.createElement('video');
+        videoEl.className = 'yfsp-custom-video';
+        videoEl.controls = true;
+        videoEl.autoplay = true;
+        videoEl.style.width = '100%';
+        videoEl.style.height = '100%';
+        videoEl.style.backgroundColor = '#000';
+        container.appendChild(videoEl);
+
+        if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+            const hls = new Hls();
+            hls.loadSource(m3u8Url);
+            hls.attachMedia(videoEl);
+        } else {
+            videoEl.src = m3u8Url;
+        }
+    }
+
+    // 退出 1080P
     function deactivateHdPlayer() {
         const overlay = document.getElementById('yfsp-hd-overlay');
         const toggleBtn = document.getElementById('yfsp-hd-toggle-btn');
         if (overlay) overlay.style.display = 'none';
-        if (toggleBtn) toggleBtn.classList.remove('active');
+        if (toggleBtn) {
+            toggleBtn.classList.remove('active');
+            toggleBtn.querySelector('.hd-text').textContent = '切换真 1080P 蓝光';
+        }
         isHdActive = false;
 
         if (artInstance) {
             artInstance.pause();
         }
 
-        // 恢复爱壹帆原生播放
-        const nativeVideo = document.querySelector('video:not(.artplayer-video)');
+        // 恢复爱壹帆原声播放
+        const nativeVideo = document.querySelector('video:not(.artplayer-video):not(.yfsp-custom-video)');
         if (nativeVideo) nativeVideo.play();
     }
 
-    // =========================================================================
-    // 5. 渲染全功能现代播放器 (Artplayer + HLS.js)
-    // =========================================================================
-    function renderArtplayer(m3u8Url) {
+    // 辅助界面：加载中状态
+    function showLoading(msg) {
         const container = document.getElementById('yfsp-artplayer-container');
         if (!container) return;
+        container.innerHTML = `
+            <div class="yfsp-hd-loading">
+                <div class="yfsp-hd-spinner"></div>
+                <div class="yfsp-hd-loading-msg">${msg}</div>
+            </div>
+        `;
+    }
 
-        // 销毁旧实例
-        if (artInstance) {
-            try { artInstance.destroy(); } catch (e) {}
-            artInstance = null;
-        }
+    // 辅助界面：未搜到片源时的手动搜索框
+    function showErrorUI(msg, currentTitle) {
+        const container = document.getElementById('yfsp-artplayer-container');
+        if (!container) return;
+        container.innerHTML = `
+            <div class="yfsp-hd-error-box">
+                <div class="yfsp-hd-error-title">⚠️ ${msg}</div>
+                <div class="yfsp-hd-error-tip">您可以尝试微调搜索词（如去掉剧名后缀）：</div>
+                <div class="yfsp-hd-search-bar">
+                    <input id="yfsp-hd-search-input" type="text" value="${currentTitle}" placeholder="输入剧名搜索..." />
+                    <button id="yfsp-hd-search-btn" type="button">重新检索</button>
+                </div>
+                <div style="margin-top: 15px;">
+                    <button id="yfsp-hd-back-btn" class="yfsp-hd-close" type="button">返回爱壹帆原版播放</button>
+                </div>
+            </div>
+        `;
 
-        if (typeof Artplayer === 'undefined') {
-            console.error(`${TAG} Artplayer 尚未加载完成，尝试使用原生 Hls 渲染`);
-            container.innerHTML = `<video src="${m3u8Url}" controls autoplay style="width:100%;height:100%;background:#000;"></video>`;
-            return;
-        }
-
-        artInstance = new Artplayer({
-            container: container,
-            url: m3u8Url,
-            type: 'm3u8',
-            customType: {
-                m3u8: function (video, url, art) {
-                    if (typeof Hls !== 'undefined' && Hls.isSupported()) {
-                        if (art.hls) art.hls.destroy();
-                        const hls = new Hls({
-                            enableWorker: true,
-                            lowLatencyMode: true
-                        });
-                        hls.loadSource(url);
-                        hls.attachMedia(video);
-                        art.hls = hls;
-                        art.on('destroy', () => hls.destroy());
-                    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                        video.src = url;
-                    } else {
-                        art.notice.show = '浏览器不支持播放该格式视频';
-                    }
-                }
-            },
-            theme: '#ffb400',
-            autoplay: true,
-            autoSize: true,
-            autoMini: false,
-            loop: false,
-            playbackRate: true,
-            aspectRatio: true,
-            setting: true,
-            hotkey: true,
-            pip: true,
-            fullscreen: true,
-            fullscreenWeb: true,
-            miniProgressBar: true,
-            mutex: true,
-            backdrop: true,
-            playsInline: true,
-            autoPlayback: true,
-            airplay: true
-        });
-
-        artInstance.on('ready', () => {
-            console.log(`${TAG} 1080P Artplayer 播放器初始化就绪`);
+        container.querySelector('#yfsp-hd-back-btn').addEventListener('click', deactivateHdPlayer);
+        container.querySelector('#yfsp-hd-search-btn').addEventListener('click', () => {
+            const val = container.querySelector('#yfsp-hd-search-input').value.trim();
+            if (val) {
+                currentVideoTitle = val;
+                activateHdPlayer();
+            }
         });
     }
 
     // =========================================================================
-    // 6. 状态轮询与路由监听 (支持剧集点击联动更新)
+    // 6. 状态轮询与路由监听 (SPA 选集自动联动)
     // =========================================================================
     let lastUrl = location.href;
     let lastEp = '';
 
-    function scheduleSourceCheck() {
+    function scheduleRefresh() {
         detectVideoInfoFromDOM();
         injectUI();
         if (isHdActive && currentEpisodeNum && currentEpisodeNum !== lastEp) {
@@ -512,11 +637,10 @@
     }
 
     setInterval(() => {
-        // 监听页面 URL 变动 (SPA 选集跳转)
         if (location.href !== lastUrl) {
             lastUrl = location.href;
-            currentEpisodeNum = '';
-            setTimeout(scheduleSourceCheck, 600);
+            currentEpisodeNum = '1';
+            setTimeout(scheduleRefresh, 600);
         }
         detectVideoInfoFromDOM();
         injectUI();
@@ -530,39 +654,40 @@
         const style = document.createElement('style');
         style.id = 'yfsp-hd-style';
         style.textContent = `
-            /* 换源工具按钮 */
+            /* 悬浮换源胶囊按钮 (固定停靠在播放器右上角) */
             .yfsp-hd-toolbar {
                 position: absolute;
-                top: 16px;
-                right: 20px;
-                z-index: 1000;
+                top: 14px;
+                right: 14px;
+                z-index: 2147483640;
                 pointer-events: auto;
             }
             .yfsp-hd-btn {
                 display: flex;
                 align-items: center;
                 gap: 6px;
-                background: linear-gradient(135deg, rgba(255, 180, 0, 0.95), rgba(255, 136, 0, 0.95));
+                background: linear-gradient(135deg, #ffb400, #ff8c00);
                 color: #121216;
                 font-weight: 700;
                 font-size: 13px;
                 border: none;
                 outline: none;
-                padding: 7px 15px;
+                padding: 7px 16px;
                 border-radius: 20px;
                 cursor: pointer;
-                box-shadow: 0 4px 15px rgba(255, 180, 0, 0.35);
-                transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+                box-shadow: 0 4px 16px rgba(255, 180, 0, 0.4);
+                transition: all 0.25s ease;
+                user-select: none;
             }
             .yfsp-hd-btn:hover {
-                transform: translateY(-2px) scale(1.03);
-                box-shadow: 0 6px 20px rgba(255, 180, 0, 0.55);
+                transform: translateY(-2px) scale(1.04);
+                box-shadow: 0 6px 22px rgba(255, 180, 0, 0.65);
             }
             .yfsp-hd-btn.active {
-                background: rgba(30, 30, 42, 0.85);
+                background: rgba(22, 22, 32, 0.9);
                 color: #ffb400;
-                border: 1px solid rgba(255, 180, 0, 0.5);
-                box-shadow: none;
+                border: 1px solid rgba(255, 180, 0, 0.6);
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
             }
 
             /* 1080P 遮罩播放层 */
@@ -572,7 +697,7 @@
                 width: 100%;
                 height: 100%;
                 background: #000;
-                z-index: 999;
+                z-index: 2147483645;
                 display: flex;
                 flex-direction: column;
             }
@@ -582,12 +707,12 @@
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                padding: 0 20px;
+                padding: 0 16px;
                 position: absolute;
                 top: 0;
                 left: 0;
                 right: 0;
-                z-index: 10;
+                z-index: 20;
                 color: #fff;
             }
             .yfsp-hd-info {
@@ -600,7 +725,7 @@
                 color: #000;
                 font-size: 11px;
                 font-weight: 800;
-                padding: 2px 6px;
+                padding: 2px 7px;
                 border-radius: 4px;
             }
             .yfsp-hd-title {
@@ -614,31 +739,27 @@
                 gap: 12px;
             }
             .yfsp-hd-select {
-                background: rgba(255, 255, 255, 0.15);
+                background: rgba(30, 30, 42, 0.85);
                 color: #fff;
                 border: 1px solid rgba(255, 255, 255, 0.25);
                 border-radius: 4px;
-                padding: 4px 8px;
+                padding: 4px 10px;
                 font-size: 12px;
                 outline: none;
                 cursor: pointer;
             }
-            .yfsp-hd-select option {
-                background: #1e1e24;
-                color: #fff;
-            }
             .yfsp-hd-close {
-                background: rgba(255, 255, 255, 0.12);
+                background: rgba(255, 255, 255, 0.15);
                 color: #eee;
                 border: 1px solid rgba(255, 255, 255, 0.2);
-                padding: 4px 12px;
+                padding: 5px 12px;
                 border-radius: 4px;
                 font-size: 12px;
                 cursor: pointer;
                 transition: all 0.2s;
             }
             .yfsp-hd-close:hover {
-                background: rgba(255, 77, 79, 0.85);
+                background: rgba(255, 77, 79, 0.9);
                 color: #fff;
                 border-color: transparent;
             }
@@ -646,55 +767,83 @@
                 flex: 1;
                 width: 100%;
                 height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: relative;
             }
 
-            /* 提示 Toast */
-            .yfsp-toast {
-                position: fixed;
-                top: 75px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: rgba(18, 18, 26, 0.94);
+            /* 加载中动画 */
+            .yfsp-hd-loading {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 16px;
                 color: #ffb400;
-                border: 1px solid rgba(255, 180, 0, 0.45);
-                padding: 8px 18px;
-                border-radius: 20px;
-                font-size: 13px;
-                font-weight: 600;
-                z-index: 2147483647;
-                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
-                backdrop-filter: blur(8px);
-                opacity: 0;
-                pointer-events: none;
-                transition: opacity 0.3s ease, transform 0.3s ease;
             }
-            .yfsp-toast.show {
-                opacity: 1;
-                transform: translate(-50%, 6px);
+            .yfsp-hd-spinner {
+                width: 44px;
+                height: 44px;
+                border: 4px solid rgba(255, 180, 0, 0.2);
+                border-top-color: #ffb400;
+                border-radius: 50%;
+                animation: yfsp-spin 0.8s linear infinite;
+            }
+            @keyframes yfsp-spin {
+                to { transform: rotate(360deg); }
+            }
+            .yfsp-hd-loading-msg {
+                font-size: 14px;
+                color: #ddd;
+            }
+
+            /* 错误与手动搜索 */
+            .yfsp-hd-error-box {
+                text-align: center;
+                color: #eee;
+                max-width: 450px;
+                padding: 24px;
+                background: rgba(30, 30, 42, 0.9);
+                border-radius: 8px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }
+            .yfsp-hd-error-title {
+                font-size: 16px;
+                font-weight: 700;
+                margin-bottom: 8px;
+                color: #ffb400;
+            }
+            .yfsp-hd-error-tip {
+                font-size: 12px;
+                color: #aaa;
+                margin-bottom: 16px;
+            }
+            .yfsp-hd-search-bar {
+                display: flex;
+                gap: 8px;
+            }
+            .yfsp-hd-search-bar input {
+                flex: 1;
+                background: #111;
+                border: 1px solid #444;
+                color: #fff;
+                padding: 7px 12px;
+                border-radius: 4px;
+                outline: none;
+            }
+            .yfsp-hd-search-bar button {
+                background: #ffb400;
+                color: #121216;
+                border: none;
+                font-weight: 700;
+                padding: 0 16px;
+                border-radius: 4px;
+                cursor: pointer;
             }
         `;
         (document.head || document.documentElement).appendChild(style);
     }
 
-    let toastTimer = null;
-    function showToast(msg) {
-        injectStyles();
-        let toast = document.getElementById('yfsp-toast-box');
-        if (!toast) {
-            toast = document.createElement('div');
-            toast.id = 'yfsp-toast-box';
-            toast.className = 'yfsp-toast';
-            (document.body || document.documentElement).appendChild(toast);
-        }
-        toast.textContent = msg;
-        toast.classList.add('show');
-        clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => {
-            toast.classList.remove('show');
-        }, 3200);
-    }
-
-    // 初始化样式注入
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', injectStyles);
     } else {
