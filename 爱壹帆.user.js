@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清播放解锁
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      1.1.0
-// @description  自动解锁爱壹帆（yfsp.tv）1080P/超清画质播放限制，解除VIP限制，去除播放等待
+// @version      1.2.0
+// @description  自动解锁爱壹帆（yfsp.tv）真·蓝光1080P画质，解除VIP限制，支持自由平滑切换清晰度
 // @author       Niklaus88
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -17,10 +17,10 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P解锁]';
 
-    console.log(`${TAG} 脚本已启动 (v1.1.0)，正在劫持流媒体鉴权与数据流...`);
+    console.log(`${TAG} 脚本已启动 (v1.2.0)，锁定真·蓝光1080P并启用多码率自由切换...`);
 
     // =========================================================================
-    // 1. 数据拦截核心：解析并解锁 API 返回的 clarity (画质列表) 与 flvPathList (播放源)
+    // 1. 数据拦截核心：解锁清晰度、默认锁定 蓝光1080P、保留多码率主列表
     // =========================================================================
     function patchVideoPlayResponse(json) {
         if (!json || !json.data) return false;
@@ -34,55 +34,50 @@
         items.forEach(info => {
             if (!info || typeof info !== 'object') return;
 
-            // 解除登录与限制标记
             info.needLogin = false;
             info.isLimitStream = false;
             info.isLimitedStream = false;
 
-            // 1. 解锁画质列表 (clarity)
+            // 1. 处理清晰度列表 (clarity)
             if (Array.isArray(info.clarity) && info.clarity.length > 0) {
                 modified = true;
-                let bestClarity = null;
-                let maxBitrate = 0;
+                let target1080 = null;
 
                 info.clarity.forEach(c => {
-                    // 解除单个清晰度的 VIP 限制
+                    // 全量解除清晰度的 VIP 限制
                     c.isVIP = false;
                     c.isBought = true;
 
-                    const rate = Number(c.bitrate) || 0;
-                    if (rate >= maxBitrate) {
-                        maxBitrate = rate;
-                        bestClarity = c;
+                    const b = Number(c.bitrate) || 0;
+                    // 排除 4K 客户端推广选项（网页端没有真4K切片，强选会触发客户端推广降级为低清流）
+                    const is4K = (b > 1080) || (c.title && c.title.includes('4K')) || (c.description && c.description.includes('4K'));
+
+                    if (!is4K) {
+                        if (!target1080) {
+                            target1080 = c;
+                        } else if (c.title && c.title.includes('1080')) {
+                            target1080 = c;
+                        } else if (b === 1080) {
+                            target1080 = c;
+                        } else if (b > (target1080.bitrate || 0) && b <= 1080) {
+                            target1080 = c;
+                        }
                     }
                 });
 
-                if (!bestClarity) {
-                    bestClarity = info.clarity[0];
+                if (!target1080) {
+                    target1080 = info.clarity.find(c => !(c.title && c.title.includes('4K'))) || info.clarity[0];
                 }
 
-                console.log(`${TAG} 发现画质列表:`, info.clarity.map(c => `${c.title}(bitrate:${c.bitrate})`));
-                console.log(`${TAG} 自动选取最高画质:`, bestClarity.title);
+                console.log(`${TAG} 发现清晰度列表:`, info.clarity.map(c => `${c.title}(bitrate:${c.bitrate})`));
+                console.log(`${TAG} 默认锁定最高画质:`, target1080.title);
 
-                // 强制默认选中的画质为最高画质 (如 1080P)
-                info.playingMedia = bestClarity;
-                info.sharpness = bestClarity.bitrate;
-
-                // 2. 将初始视频流 (flvPathList) 强制替换为最高画质流
-                if (bestClarity.path && bestClarity.path.result && Array.isArray(info.flvPathList)) {
-                    info.flvPathList.forEach(item => {
-                        if (!item.link) {
-                            item.result = bestClarity.path.result;
-                            item.backup = bestClarity.path.result;
-                            if (bestClarity.path.isHls !== undefined) {
-                                item.isHls = bestClarity.path.isHls;
-                            }
-                        }
-                    });
-                }
+                // 强制默认选中的画质为真·1080P，绝不选假 4K
+                info.playingMedia = target1080;
+                info.sharpness = target1080.bitrate || 1080;
             }
 
-            // 3. 清除片头广告干扰
+            // 2. 清除片头广告干扰，并保留 MasterPlayList
             if (Array.isArray(info.startData) && info.startData.length > 0) {
                 info.startData = [];
                 modified = true;
@@ -92,16 +87,28 @@
                 modified = true;
             }
             if (Array.isArray(info.flvPathList)) {
+                // 仅过滤广告分段
                 const realStreams = info.flvPathList.filter(item => !item.link);
-                if (realStreams.length > 0 && realStreams.length !== info.flvPathList.length) {
+                if (realStreams.length > 0) {
                     info.flvPathList = realStreams;
                     modified = true;
+                }
+
+                // 检查是否已有 MasterPlayList，如果有则必须保留以支持平滑切换画质
+                const hasMaster = info.flvPathList.some(item => item.result && item.result.includes('MasterPlayList'));
+                if (!hasMaster && info.playingMedia && info.playingMedia.path && info.playingMedia.path.result) {
+                    info.flvPathList.forEach(item => {
+                        if (!item.link) {
+                            item.result = info.playingMedia.path.result;
+                            item.backup = info.playingMedia.path.result;
+                        }
+                    });
                 }
             }
         });
 
         if (modified) {
-            showToast('已成功解锁 1080P/最高画质');
+            showToast('已成功解锁并锁定 蓝光1080P 画质');
         }
 
         return modified;
@@ -166,8 +173,6 @@
 
             return origSend.apply(this, args);
         };
-
-        console.log(`${TAG} XMLHttpRequest 劫持成功`);
     } catch (e) {
         console.error(`${TAG} 劫持 XMLHttpRequest 失败:`, e);
     }
@@ -198,12 +203,11 @@
 
                 return res;
             };
-            console.log(`${TAG} window.fetch 劫持成功`);
         }
     } catch (e) {}
 
     // =========================================================================
-    // 4. 安全监听 Hls.js（仅在主多码率 m3u8 时辅助自适应最高画质，不破坏状态机）
+    // 4. Hls.js 安全辅助：解析出清单时确保默认指向 1080P
     // =========================================================================
     try {
         function hookSafeHls(HlsClass) {
@@ -218,11 +222,29 @@
                     this.__yfsp_has_listener = true;
                     this.on('hlsManifestParsed', (event, data) => {
                         if (data && Array.isArray(data.levels) && data.levels.length > 1) {
-                            console.log(`${TAG} HLS 多码率清单解析完成，最高档位:`, data.levels.length - 1);
-                            // 保持在最高画质档位
-                            try {
-                                this.nextLevel = data.levels.length - 1;
-                            } catch (e) {}
+                            let targetIdx = -1;
+                            data.levels.forEach((lvl, idx) => {
+                                const h = lvl.height || parseInt(lvl.name) || 0;
+                                if (h === 1080 || lvl.name === '1080' || lvl.name === '1080p') {
+                                    targetIdx = idx;
+                                }
+                            });
+                            if (targetIdx === -1) {
+                                let maxH = 0;
+                                data.levels.forEach((lvl, idx) => {
+                                    const h = lvl.height || parseInt(lvl.name) || 0;
+                                    if (h <= 1080 && h > maxH) {
+                                        maxH = h;
+                                        targetIdx = idx;
+                                    }
+                                });
+                            }
+                            if (targetIdx > -1) {
+                                console.log(`${TAG} HLS 多码率解析完成，初始自动选档: Level ${targetIdx}`);
+                                try {
+                                    this.nextLevel = targetIdx;
+                                } catch (e) {}
+                            }
                         }
                     });
                 }
@@ -252,7 +274,28 @@
     }
 
     // =========================================================================
-    // 5. 轻量提示框
+    // 5. “正在切换清晰度...” 卡屏看门狗
+    // =========================================================================
+    // 解决切换清晰度后原生界面残留提示文本卡死画面的问题
+    setInterval(() => {
+        try {
+            const prompts = document.querySelectorAll('div, span');
+            prompts.forEach(el => {
+                if (el.children.length === 0 && (el.textContent.includes('正在切换清晰度') || el.textContent.includes('正在切换线路'))) {
+                    if (!el.dataset.yfspTimer) {
+                        el.dataset.yfspTimer = Date.now().toString();
+                    } else if (Date.now() - parseInt(el.dataset.yfspTimer) > 1800) {
+                        el.style.display = 'none';
+                    }
+                } else if (el.dataset && el.dataset.yfspTimer) {
+                    delete el.dataset.yfspTimer;
+                }
+            });
+        } catch (e) {}
+    }, 500);
+
+    // =========================================================================
+    // 6. 轻量通知提示
     // =========================================================================
     function injectStyles() {
         if (document.getElementById('yfsp-unlock-style')) return;
@@ -302,7 +345,7 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(() => {
             toast.classList.remove('show');
-        }, 3000);
+        }, 2800);
     }
 
 })();
