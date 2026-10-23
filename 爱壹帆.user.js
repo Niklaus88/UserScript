@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清播放解锁
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      1.2.0
-// @description  自动解锁爱壹帆（yfsp.tv）真·蓝光1080P画质，解除VIP限制，支持自由平滑切换清晰度
+// @version      1.3.0
+// @description  自动解锁爱壹帆（yfsp.tv）真·蓝光1080P画质，彻底剔除虚假4K，解除VIP限制，支持自由平滑切换清晰度
 // @author       Niklaus88
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -17,10 +17,10 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P解锁]';
 
-    console.log(`${TAG} 脚本已启动 (v1.2.0)，锁定真·蓝光1080P并启用多码率自由切换...`);
+    console.log(`${TAG} 脚本已启动 (v1.3.0)，全面锁定真·蓝光1080P，剔除虚假4K...`);
 
     // =========================================================================
-    // 1. 数据拦截核心：解锁清晰度、默认锁定 蓝光1080P、保留多码率主列表
+    // 1. 数据拦截核心：彻底剔除虚假 4K、全量解锁 VIP、将初始播放流硬替换为真 1080P
     // =========================================================================
     function patchVideoPlayResponse(json) {
         if (!json || !json.data) return false;
@@ -38,77 +38,62 @@
             info.isLimitStream = false;
             info.isLimitedStream = false;
 
-            // 1. 处理清晰度列表 (clarity)
+            // 1. 深度处理清晰度列表 (clarity)
             if (Array.isArray(info.clarity) && info.clarity.length > 0) {
                 modified = true;
-                let target1080 = null;
 
-                info.clarity.forEach(c => {
-                    // 全量解除清晰度的 VIP 限制
-                    c.isVIP = false;
-                    c.isBought = true;
-
+                // (1) 彻底过滤掉虚假的 4K (客户端) 推广项，防止前端控制栏默认选择 4K 降级流
+                info.clarity = info.clarity.filter(c => {
                     const b = Number(c.bitrate) || 0;
-                    // 排除 4K 客户端推广选项（网页端没有真4K切片，强选会触发客户端推广降级为低清流）
                     const is4K = (b > 1080) || (c.title && c.title.includes('4K')) || (c.description && c.description.includes('4K'));
-
-                    if (!is4K) {
-                        if (!target1080) {
-                            target1080 = c;
-                        } else if (c.title && c.title.includes('1080')) {
-                            target1080 = c;
-                        } else if (b === 1080) {
-                            target1080 = c;
-                        } else if (b > (target1080.bitrate || 0) && b <= 1080) {
-                            target1080 = c;
-                        }
-                    }
+                    return !is4K;
                 });
 
-                if (!target1080) {
-                    target1080 = info.clarity.find(c => !(c.title && c.title.includes('4K'))) || info.clarity[0];
-                }
+                // (2) 按码率降序排列，确保首个项即为当前片源拥有的最高画质（通常为 蓝光1080P）
+                info.clarity.sort((a, b) => (Number(b.bitrate) || 0) - (Number(a.bitrate) || 0));
 
-                console.log(`${TAG} 发现清晰度列表:`, info.clarity.map(c => `${c.title}(bitrate:${c.bitrate})`));
-                console.log(`${TAG} 默认锁定最高画质:`, target1080.title);
+                // (3) 解锁所有画质的 VIP 和已购买标记
+                info.clarity.forEach(c => {
+                    c.isVIP = false;
+                    c.isBought = true;
+                });
 
-                // 强制默认选中的画质为真·1080P，绝不选假 4K
-                info.playingMedia = target1080;
-                info.sharpness = target1080.bitrate || 1080;
-            }
+                const target1080 = info.clarity[0];
+                if (target1080) {
+                    console.log(`${TAG} 已过滤4K，当前片源可用清晰度:`, info.clarity.map(c => c.title));
+                    console.log(`${TAG} 默认锁定最高真画质:`, target1080.title);
 
-            // 2. 清除片头广告干扰，并保留 MasterPlayList
-            if (Array.isArray(info.startData) && info.startData.length > 0) {
-                info.startData = [];
-                modified = true;
-            }
-            if (info.maxFrontAds) {
-                info.maxFrontAds = 0;
-                modified = true;
-            }
-            if (Array.isArray(info.flvPathList)) {
-                // 仅过滤广告分段
-                const realStreams = info.flvPathList.filter(item => !item.link);
-                if (realStreams.length > 0) {
-                    info.flvPathList = realStreams;
-                    modified = true;
-                }
+                    // 默认选中的清晰度强制指向 蓝光1080P
+                    info.playingMedia = target1080;
+                    info.sharpness = target1080.bitrate || 1080;
 
-                // 检查是否已有 MasterPlayList，如果有则必须保留以支持平滑切换画质
-                const hasMaster = info.flvPathList.some(item => item.result && item.result.includes('MasterPlayList'));
-                if (!hasMaster && info.playingMedia && info.playingMedia.path && info.playingMedia.path.result) {
-                    info.flvPathList.forEach(item => {
-                        if (!item.link) {
-                            item.result = info.playingMedia.path.result;
-                            item.backup = info.playingMedia.path.result;
+                    // (4) 关键修复：将初始播放流 (flvPathList) 强制替换为 1080P 的真实视频切片流！
+                    // 此举从底层替换 576P 默认流，使播放器从第 1 秒起就加载真正的 1080P 画面
+                    if (target1080.path && target1080.path.result && Array.isArray(info.flvPathList)) {
+                        const realStreams = info.flvPathList.filter(item => !item.link);
+                        if (realStreams.length > 0) {
+                            realStreams.forEach(item => {
+                                item.result = target1080.path.result;
+                                item.backup = target1080.path.result;
+                                if (target1080.path.needSign !== undefined) item.needSign = target1080.path.needSign;
+                                if (target1080.path.isHls !== undefined) item.isHls = target1080.path.isHls;
+                            });
+                            info.flvPathList = realStreams;
                         }
-                    });
+                    }
                 }
+            }
+
+            // 2. 清除片头广告干扰
+            if (Array.isArray(info.startData)) info.startData = [];
+            if (info.maxFrontAds) info.maxFrontAds = 0;
+            if (Array.isArray(info.flvPathList)) {
+                info.flvPathList = info.flvPathList.filter(item => !item.link);
             }
         });
 
         if (modified) {
-            showToast('已成功解锁并锁定 蓝光1080P 画质');
+            showToast('已成功锁定 蓝光1080P 真高清画质');
         }
 
         return modified;
@@ -207,95 +192,27 @@
     } catch (e) {}
 
     // =========================================================================
-    // 4. Hls.js 安全辅助：解析出清单时确保默认指向 1080P
+    // 4. “正在切换清晰度...” 卡屏看门狗与自动消除
     // =========================================================================
-    try {
-        function hookSafeHls(HlsClass) {
-            if (!HlsClass || HlsClass.__yfsp_safe_hooked) return HlsClass;
-            HlsClass.__yfsp_safe_hooked = true;
-
-            const proto = HlsClass.prototype;
-            const origLoadSource = proto.loadSource;
-
-            proto.loadSource = function (url) {
-                if (!this.__yfsp_has_listener) {
-                    this.__yfsp_has_listener = true;
-                    this.on('hlsManifestParsed', (event, data) => {
-                        if (data && Array.isArray(data.levels) && data.levels.length > 1) {
-                            let targetIdx = -1;
-                            data.levels.forEach((lvl, idx) => {
-                                const h = lvl.height || parseInt(lvl.name) || 0;
-                                if (h === 1080 || lvl.name === '1080' || lvl.name === '1080p') {
-                                    targetIdx = idx;
-                                }
-                            });
-                            if (targetIdx === -1) {
-                                let maxH = 0;
-                                data.levels.forEach((lvl, idx) => {
-                                    const h = lvl.height || parseInt(lvl.name) || 0;
-                                    if (h <= 1080 && h > maxH) {
-                                        maxH = h;
-                                        targetIdx = idx;
-                                    }
-                                });
-                            }
-                            if (targetIdx > -1) {
-                                console.log(`${TAG} HLS 多码率解析完成，初始自动选档: Level ${targetIdx}`);
-                                try {
-                                    this.nextLevel = targetIdx;
-                                } catch (e) {}
-                            }
-                        }
-                    });
-                }
-                return origLoadSource.call(this, url);
-            };
-
-            return HlsClass;
-        }
-
-        if (win.Hls) {
-            hookSafeHls(win.Hls);
-        } else {
-            let _Hls = undefined;
-            Object.defineProperty(win, 'Hls', {
-                get() {
-                    return _Hls;
-                },
-                set(val) {
-                    _Hls = hookSafeHls(val);
-                },
-                configurable: true,
-                enumerable: true
-            });
-        }
-    } catch (e) {
-        console.warn(`${TAG} 安全注入 Hls 失败:`, e);
-    }
-
-    // =========================================================================
-    // 5. “正在切换清晰度...” 卡屏看门狗
-    // =========================================================================
-    // 解决切换清晰度后原生界面残留提示文本卡死画面的问题
     setInterval(() => {
         try {
-            const prompts = document.querySelectorAll('div, span');
-            prompts.forEach(el => {
+            const allElements = document.querySelectorAll('div, span');
+            allElements.forEach(el => {
                 if (el.children.length === 0 && (el.textContent.includes('正在切换清晰度') || el.textContent.includes('正在切换线路'))) {
-                    if (!el.dataset.yfspTimer) {
-                        el.dataset.yfspTimer = Date.now().toString();
-                    } else if (Date.now() - parseInt(el.dataset.yfspTimer) > 1800) {
+                    if (!el.dataset.yfspSwitchTimer) {
+                        el.dataset.yfspSwitchTimer = Date.now().toString();
+                    } else if (Date.now() - parseInt(el.dataset.yfspSwitchTimer) > 1200) {
                         el.style.display = 'none';
                     }
-                } else if (el.dataset && el.dataset.yfspTimer) {
-                    delete el.dataset.yfspTimer;
+                } else if (el.dataset && el.dataset.yfspSwitchTimer) {
+                    delete el.dataset.yfspSwitchTimer;
                 }
             });
         } catch (e) {}
-    }, 500);
+    }, 300);
 
     // =========================================================================
-    // 6. 轻量通知提示
+    // 5. 轻量通知提示
     // =========================================================================
     function injectStyles() {
         if (document.getElementById('yfsp-unlock-style')) return;
