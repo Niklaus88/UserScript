@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.1.0
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，一键切换极清画质，免除VIP限制与画质封锁，去广告并支持多线路自由切换
+// @version      2.2.0
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，一键切换极清画质，免除VIP限制与画质封锁，去广告并支持多线路自由切换，切换时静音暂停原画并自动同步播放进度
 // @author       Niklaus88
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -27,7 +27,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.1.0) - 真1080P第三方高清聚合源引擎`);
+    console.log(`${TAG} 脚本已启动 (v2.2.0) - 真1080P第三方高清聚合源引擎`);
 
     // =========================================================================
     // 0. 线路配置 (支持多源自动容灾检索)
@@ -46,6 +46,7 @@
     let isHdActive = false;
     let currentMatchedList = [];
     let selectedSourceIndex = 0;
+    let lastProgressTime = 0; // 进度记忆与无缝同步
 
     // =========================================================================
     // 1. 数据拦截：从后端请求中捕获剧名、集数 + 清理官方广告
@@ -404,6 +405,45 @@
         }
     }
 
+    // =========================================================================
+    // 4.1 原生播放器音频彻底静音与拦截控制 (防止双声音重叠)
+    // =========================================================================
+    function getAllNativeVideos() {
+        return Array.from(document.querySelectorAll('video')).filter(v => {
+            return !v.closest('#yfsp-artplayer-container') &&
+                   !v.classList.contains('artplayer-video') &&
+                   !v.classList.contains('yfsp-custom-video');
+        });
+    }
+
+    function muteAndPauseAllNativeVideos() {
+        const videos = getAllNativeVideos();
+        videos.forEach(v => {
+            try {
+                if (!v.paused) v.pause();
+                v.muted = true;
+                v.volume = 0;
+            } catch (e) {}
+        });
+    }
+
+    // 全局捕获阶段拦截原生 video 自动恢复播放
+    window.addEventListener('play', (e) => {
+        if (isHdActive) {
+            const v = e.target;
+            if (v && v.tagName === 'VIDEO' &&
+                !v.closest('#yfsp-artplayer-container') &&
+                !v.classList.contains('artplayer-video') &&
+                !v.classList.contains('yfsp-custom-video')) {
+                try {
+                    v.pause();
+                    v.muted = true;
+                    v.volume = 0;
+                } catch (err) {}
+            }
+        }
+    }, true);
+
     // 点击激活 1080P
     async function activateHdPlayer() {
         injectUI();
@@ -418,11 +458,13 @@
             toggleBtn.querySelector('.hd-text').textContent = '1080P 蓝光播放中';
         }
 
-        // 暂停原生视频
-        const nativeVideo = document.querySelector('video:not(.artplayer-video):not(.yfsp-custom-video)');
-        if (nativeVideo) {
-            nativeVideo.pause();
+        // 记录原生播放进度并彻底静音、暂停所有原生视频，杜绝声音重叠
+        const nativeList = getAllNativeVideos();
+        if (nativeList.length > 0 && nativeList[0].currentTime > 0) {
+            lastProgressTime = nativeList[0].currentTime;
+            console.log(`${TAG} 记录当前原生播放进度: ${lastProgressTime.toFixed(1)} 秒`);
         }
+        muteAndPauseAllNativeVideos();
 
         // 提取剧名与集数
         detectVideoInfoFromDOM();
@@ -486,7 +528,7 @@
         renderPlayer(matchedEp.url);
     }
 
-    // 渲染播放器 (Artplayer 优先，原生 Hls 自动兜底)
+    // 渲染播放器 (Artplayer 优先，原生 Hls 自动兜底，进度无缝承接)
     function renderPlayer(m3u8Url) {
         const container = document.getElementById('yfsp-artplayer-container');
         if (!container) return;
@@ -535,6 +577,15 @@
                     playsInline: true,
                     autoPlayback: true
                 });
+
+                // 进度无缝承接与双重静音保障
+                artInstance.on('ready', () => {
+                    if (lastProgressTime > 0) {
+                        console.log(`${TAG} 1080P 播放器就绪，自动无缝跳至进度: ${lastProgressTime.toFixed(1)} 秒`);
+                        artInstance.currentTime = lastProgressTime;
+                    }
+                    muteAndPauseAllNativeVideos();
+                });
                 return;
             } catch (err) {
                 console.warn(`${TAG} Artplayer 初始化异常，降级为原生 Hls 播放:`, err);
@@ -559,9 +610,14 @@
         } else {
             videoEl.src = m3u8Url;
         }
+
+        if (lastProgressTime > 0) {
+            videoEl.currentTime = lastProgressTime;
+        }
+        muteAndPauseAllNativeVideos();
     }
 
-    // 退出 1080P
+    // 退出 1080P 并恢复原生播放与声音
     function deactivateHdPlayer() {
         const overlay = document.getElementById('yfsp-hd-overlay');
         const toggleBtn = document.getElementById('yfsp-hd-toggle-btn');
@@ -570,15 +626,32 @@
             toggleBtn.classList.remove('active');
             toggleBtn.querySelector('.hd-text').textContent = '切换真 1080P 蓝光';
         }
-        isHdActive = false;
 
+        let returnTime = 0;
         if (artInstance) {
-            artInstance.pause();
+            returnTime = artInstance.currentTime || 0;
+            try { artInstance.pause(); } catch (e) {}
+        }
+        const customVideo = document.querySelector('.yfsp-custom-video');
+        if (customVideo) {
+            returnTime = customVideo.currentTime || returnTime;
+            try { customVideo.pause(); } catch (e) {}
         }
 
-        // 恢复爱壹帆原声播放
-        const nativeVideo = document.querySelector('video:not(.artplayer-video):not(.yfsp-custom-video)');
-        if (nativeVideo) nativeVideo.play();
+        isHdActive = false;
+
+        // 恢复爱壹帆原生播放、取消静音、同步进度
+        const nativeVideos = getAllNativeVideos();
+        nativeVideos.forEach(v => {
+            try {
+                if (returnTime > 0) {
+                    v.currentTime = returnTime;
+                }
+                v.muted = false;
+                v.volume = 1;
+                v.play().catch(() => {});
+            } catch (e) {}
+        });
     }
 
     // 辅助界面：加载中状态
@@ -637,6 +710,9 @@
     }
 
     setInterval(() => {
+        if (isHdActive) {
+            muteAndPauseAllNativeVideos();
+        }
         if (location.href !== lastUrl) {
             lastUrl = location.href;
             currentEpisodeNum = '1';
@@ -644,7 +720,7 @@
         }
         detectVideoInfoFromDOM();
         injectUI();
-    }, 1000);
+    }, 400);
 
     // =========================================================================
     // 7. 样式注入
