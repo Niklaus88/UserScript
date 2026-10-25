@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.4.0
+// @version      2.4.1
 // @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，同步引入555电影专属高速蓝光集群，一键切换极清画质，免除VIP限制，精细去广告并保护UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
@@ -392,8 +392,9 @@
                     });
                 }
 
-                // 保留有效剧集线路 (过滤只有1集预告的残缺线)
-                if (eps.length >= 2) {
+                // 过滤异常线路：排除“高清蓝光”（555站内加密/失效线），同时保留集数>=2的有效线路
+                const isProblematic = lineName.replace(/\s+/g, '') === '高清蓝光';
+                if (eps.length >= 2 && !isProblematic) {
                     lines.push({
                         sourceId: `555_${idx}`,
                         sourceName: `555·${lineName}`,
