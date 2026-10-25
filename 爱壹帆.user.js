@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.3.1
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，一键切换极清画质，免除VIP限制与画质封锁，精细去除片内广告，完美保留UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.4.0
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，同步引入555电影专属高速蓝光集群，一键切换极清画质，免除VIP限制，精细去广告并保护UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Niklaus88
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -12,7 +12,11 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @connect      555k06.com
+// @connect      55dy60.com
+// @connect      555dy.net
 // @connect      bfzyapi.com
+// @connect      suoniapi.com
 // @connect      hhzyapi.com
 // @connect      subocaiji.com
 // @connect      cj.lziapi.com
@@ -27,7 +31,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.3.1) - 精细去广告 + 保护UP主关注卡片`);
+    console.log(`${TAG} 脚本已启动 (v2.4.0) - 引入 555 电影极速蓝光线路集群`);
 
     // =========================================================================
     // 0. 线路配置 (支持多源自动容灾检索)
@@ -199,7 +203,7 @@
     } catch (e) {}
 
     // =========================================================================
-    // 2. 剧名与集数精准提取算法 (完美解析如 "沧元图 01", "凡人修仙传 196")
+    // 2. 剧名与集数精准提取算法 + 关键词泛化生成
     // =========================================================================
     function parseTitleAndEp(raw) {
         if (!raw) return { title: '', ep: '1' };
@@ -227,9 +231,39 @@
         }
 
         return {
-            title: text.trim(),
+            title: text.replace(/[\s\-:_—·：]+$/, '').trim(),
             ep: ep ? String(parseInt(ep, 10)) : ''
         };
+    }
+
+    function generateKeywords(raw) {
+        if (!raw) return [];
+        let text = raw
+            .replace(/-\s*爱壹帆.*/i, '')
+            .replace(/_爱壹帆.*/i, '')
+            .replace(/在线观看.*/i, '')
+            .replace(/HD|BD|4K|1080P/gi, '')
+            .replace(/[\[\(【（].*?[\]\)】）]/g, '')
+            .replace(/第\s*\d+\s*[集话期].*/, '')
+            .replace(/(?:^|\s+|_)0*\d{1,4}$/, '')
+            .replace(/[\s\-:_—·：]+$/, '')
+            .trim();
+
+        const list = [];
+        if (text) list.push(text);
+
+        // 移除 "第x季 / 第x部 / 第x篇"
+        const noSeason = text.replace(/第\s*[一二三四五六七八九十\d]+\s*[季部篇章]/g, '').replace(/[\s\-:_—·：]+$/, '').trim();
+        if (noSeason && !list.includes(noSeason)) list.push(noSeason);
+
+        // 替换冒号与分隔符为空格
+        const clean = text.replace(/[:：·\-_—]/g, ' ').replace(/\s+/g, ' ').trim();
+        if (clean && !list.includes(clean)) list.push(clean);
+
+        const cleanNoSeason = noSeason.replace(/[:：·\-_—]/g, ' ').replace(/\s+/g, ' ').trim();
+        if (cleanNoSeason && !list.includes(cleanNoSeason)) list.push(cleanNoSeason);
+
+        return list.filter(k => k.length >= 2);
     }
 
     function detectVideoInfoFromDOM() {
@@ -251,8 +285,29 @@
     }
 
     // =========================================================================
-    // 3. 第三方影视源检索与切片地址规范化
+    // 3. 第三方影视源检索：555电影专属集群 + 官方独立切片源
     // =========================================================================
+    function requestText(url) {
+        return new Promise((resolve, reject) => {
+            if (typeof GM_xmlhttpRequest !== 'undefined') {
+                GM_xmlhttpRequest({
+                    method: 'GET',
+                    url: url,
+                    timeout: 7000,
+                    headers: {
+                        'Referer': 'https://555k06.com/',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+                    },
+                    onload: res => resolve(res.responseText || ''),
+                    onerror: err => reject(err),
+                    ontimeout: () => reject(new Error('Timeout'))
+                });
+            } else {
+                fetch(url).then(r => r.text()).then(resolve).catch(reject);
+            }
+        });
+    }
+
     function requestApi(url) {
         return new Promise((resolve, reject) => {
             if (typeof GM_xmlhttpRequest !== 'undefined') {
@@ -283,68 +338,144 @@
         if (!url) return '';
         url = url.trim();
         if (url.includes('.m3u8')) return url;
-        // 针对部分采集源 (如速播/红牛) 补全 index.m3u8
         if (url.includes('xluuss.com') || url.includes('hhuus.com') || url.includes('bfllvip.com')) {
             return url.replace(/\/+$/, '') + '/index.m3u8';
         }
         return url;
     }
 
+    // 核心：深度解析 555 电影的全部多线路与切片列表
+    async function search555Lines(keywords) {
+        const host = 'https://555k06.com';
+        let vodId = null;
+        for (const kw of keywords) {
+            try {
+                const searchHtml = await requestText(`${host}/vodsearch/-------------.html?wd=${encodeURIComponent(kw)}`);
+                const m = searchHtml.match(/\/voddetail\/(\d+)\.html/);
+                if (m) {
+                    vodId = m[1];
+                    console.log(`${TAG} 555匹配影片ID: ${vodId} (关键词: ${kw})`);
+                    break;
+                }
+            } catch (e) {}
+        }
+        if (!vodId) return [];
+
+        try {
+            const detailHtml = await requestText(`${host}/voddetail/${vodId}.html`);
+            const tabNames = [];
+            const reTab = /data-dropdown-value="([^"]+)"/g;
+            let tm;
+            while ((tm = reTab.exec(detailHtml)) !== null) {
+                tabNames.push(tm[1].trim());
+            }
+
+            const reList = /<div[^>]*class="[^"]*module-play-list[^"]*"[\s\S]*?<\/div>\s*<\/div>/g;
+            let lm;
+            let idx = 0;
+            const lines = [];
+
+            while ((lm = reList.exec(detailHtml)) !== null && idx < tabNames.length) {
+                const lineName = tabNames[idx];
+                const reEp = /href="(\/vodplay\/\d+-\d+-\d+\.html)"[^>]*><span>([^<]+)<\/span>/g;
+                let em;
+                const eps = [];
+                while ((em = reEp.exec(lm[0])) !== null) {
+                    const epTitle = em[2].trim();
+                    const numMatch = epTitle.match(/\d+/);
+                    const num = numMatch ? String(parseInt(numMatch[0], 10)) : '';
+                    eps.push({
+                        title: epTitle,
+                        num: num,
+                        playLink: em[1],
+                        url: '' // 懒加载切片地址
+                    });
+                }
+
+                // 保留有效剧集线路 (过滤只有1集预告的残缺线)
+                if (eps.length >= 2) {
+                    lines.push({
+                        sourceId: `555_${idx}`,
+                        sourceName: `555·${lineName}`,
+                        is555: true,
+                        episodes: eps
+                    });
+                }
+                idx++;
+            }
+            return lines;
+        } catch (err) {
+            console.warn(`${TAG} 555多线路解析失败:`, err);
+            return [];
+        }
+    }
+
     async function searchHighDefinitionStreams(title) {
         if (!title) return [];
-        console.log(`${TAG} 正在全网检索 1080P 片源: [${title}]`);
+        const keywords = generateKeywords(title);
+        console.log(`${TAG} 正在全网检索 1080P 片源，候选词:`, keywords);
 
         const matchedSources = [];
 
-        for (const src of SOURCES) {
-            try {
-                const data = await requestApi(src.api + encodeURIComponent(title));
-                if (!data || !data.list || !data.list.length) continue;
+        // 1. 优先拉取 555 电影的专属高速线路集群 (多达 6~10 条全网高质量线路)
+        try {
+            const lines555 = await search555Lines(keywords);
+            if (lines555 && lines555.length > 0) {
+                matchedSources.push(...lines555);
+                console.log(`${TAG} 成功载入 555 电影专属线路: ${lines555.length} 条`);
+            }
+        } catch (e) {}
 
-                // 优先精准匹配剧名，没有则模糊匹配
-                const matchedVod = data.list.find(vod => {
-                    const vName = parseTitleAndEp(vod.vod_name).title;
-                    return vName === title;
-                }) || data.list.find(vod => {
-                    const vName = parseTitleAndEp(vod.vod_name).title;
-                    return vName.includes(title) || title.includes(vName);
-                }) || data.list[0];
+        // 2. 同时检索官方独立采集站直连线路作为双重容灾保障
+        for (const kw of keywords) {
+            for (const src of SOURCES) {
+                // 如果该独立源已添加，跳过
+                if (matchedSources.some(s => s.sourceId === src.id)) continue;
 
-                if (!matchedVod || !matchedVod.vod_play_url) continue;
+                try {
+                    const data = await requestApi(src.api + encodeURIComponent(kw));
+                    if (!data || !data.list || !data.list.length) continue;
 
-                const groups = matchedVod.vod_play_url.split('$$$');
-                const parsedPlaylists = [];
+                    const matchedVod = data.list.find(vod => {
+                        const vName = parseTitleAndEp(vod.vod_name).title;
+                        return vName === kw || vName.includes(kw) || kw.includes(vName);
+                    }) || data.list[0];
 
-                for (const g of groups) {
-                    const epList = [];
-                    const eps = g.split('#');
-                    for (const ep of eps) {
-                        const parts = ep.split('$');
-                        if (parts.length >= 2) {
-                            const nameStr = parts[0];
-                            const numMatch = nameStr.match(/\d+/);
-                            const num = numMatch ? String(parseInt(numMatch[0], 10)) : '';
-                            epList.push({
-                                title: nameStr,
-                                num: num,
-                                url: normalizeM3u8Url(parts[1])
-                            });
+                    if (!matchedVod || !matchedVod.vod_play_url) continue;
+
+                    const groups = matchedVod.vod_play_url.split('$$$');
+                    const parsedPlaylists = [];
+
+                    for (const g of groups) {
+                        const epList = [];
+                        const eps = g.split('#');
+                        for (const ep of eps) {
+                            const parts = ep.split('$');
+                            if (parts.length >= 2) {
+                                const nameStr = parts[0];
+                                const numMatch = nameStr.match(/\d+/);
+                                const num = numMatch ? String(parseInt(numMatch[0], 10)) : '';
+                                epList.push({
+                                    title: nameStr,
+                                    num: num,
+                                    url: normalizeM3u8Url(parts[1])
+                                });
+                            }
                         }
+                        if (epList.length > 0) parsedPlaylists.push(epList);
                     }
-                    if (epList.length > 0) parsedPlaylists.push(epList);
-                }
 
-                if (parsedPlaylists.length > 0) {
-                    parsedPlaylists.sort((a, b) => b.length - a.length);
-                    matchedSources.push({
-                        sourceId: src.id,
-                        sourceName: src.name,
-                        vodName: matchedVod.vod_name,
-                        episodes: parsedPlaylists[0]
-                    });
-                }
-            } catch (err) {
-                console.warn(`${TAG} 线路 [${src.name}] 检索出错:`, err);
+                    if (parsedPlaylists.length > 0) {
+                        parsedPlaylists.sort((a, b) => b.length - a.length);
+                        matchedSources.push({
+                            sourceId: src.id,
+                            sourceName: src.name,
+                            is555: false,
+                            vodName: matchedVod.vod_name,
+                            episodes: parsedPlaylists[0]
+                        });
+                    }
+                } catch (err) {}
             }
         }
 
@@ -554,8 +685,8 @@
         playCurrentEpisodeInHd();
     }
 
-    // 播放指定集数
-    function playCurrentEpisodeInHd() {
+    // 播放指定集数 (支持 555 线路即点即解与高速缓存)
+    async function playCurrentEpisodeInHd() {
         if (!currentMatchedList || !currentMatchedList.length) return;
         const currentSource = currentMatchedList[selectedSourceIndex] || currentMatchedList[0];
 
@@ -568,18 +699,39 @@
         }
         if (!matchedEp && currentSource.episodes.length > 0) {
             const idx = parseInt(targetEp, 10) - 1;
-            matchedEp = currentSource.episodes[idx] || currentSource.episodes[0];
+            matchedEp = currentSource.episodes[idx] || currentSource.episodes[currentSource.episodes.length - 1];
         }
 
-        if (!matchedEp || !matchedEp.url) {
+        if (!matchedEp) {
             showErrorUI(`在 [${currentSource.sourceName}] 中未找到第 ${targetEp} 集切片`, currentVideoTitle);
+            return;
+        }
+
+        // 针对 555 线路实时秒级提取真实 m3u8 直链
+        if (currentSource.is555 && !matchedEp.url) {
+            showLoading(`正在连接 [${currentSource.sourceName}] ${matchedEp.title}...`);
+            try {
+                const playHtml = await requestText('https://555k06.com' + matchedEp.playLink);
+                const pMatch = playHtml.match(/player_aaaa\s*=\s*({[\s\S]*?});/);
+                if (pMatch) {
+                    const cleanStr = pMatch[1].replace(/<\/script>[\s\S]*/, '');
+                    const parsed = JSON.parse(cleanStr);
+                    matchedEp.url = parsed.url;
+                }
+            } catch (err) {
+                console.warn(`${TAG} 555切片直链解析异常:`, err);
+            }
+        }
+
+        if (!matchedEp.url) {
+            showErrorUI(`[${currentSource.sourceName}] 正在缓冲或无切片，请切换其他线路`, currentVideoTitle);
             return;
         }
 
         console.log(`${TAG} 最终播放流: [${currentSource.sourceName}] ${matchedEp.title} -> ${matchedEp.url}`);
 
         const titleText = document.getElementById('yfsp-hd-title-text');
-        if (titleText) titleText.textContent = `${currentVideoTitle} - ${matchedEp.title} [真1080P]`;
+        if (titleText) titleText.textContent = `${currentVideoTitle} - ${matchedEp.title} [${currentSource.sourceName}]`;
 
         renderPlayer(matchedEp.url);
     }
