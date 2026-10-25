@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.6.8
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，一键切换极清画质，免除VIP限制，深度净网去广告，全源接入Hls音频断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.6.9
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，一键切换极清画质，免除VIP限制，深度净网去广告，全源接入Hls音频断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -38,7 +38,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.6.8) - 深度净网去广告与多线路极清集群就绪`);
+    console.log(`${TAG} 脚本已启动 (v2.6.9) - 深度净网去广告与多线路极清集群就绪`);
 
     // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
     try {
@@ -462,8 +462,10 @@
                     });
                 }
 
-                // 保留集数>=2的有效线路（全量开放高清蓝光、极速蓝光等全部集群，由全局音频抗失真引擎保障正常播放）
-                if (eps.length >= 2) {
+                // 过滤异常线路：排除底层存在严重切片缺陷的“极速蓝光-ws”（全片内含250多处硬插断点导致声卡时钟累积漂移失真，且画质仅720P），同时保留集数>=2的有效线路
+                const cleanName = lineName.replace(/\s+/g, '').toLowerCase();
+                const isProblematic = cleanName === '极速蓝光-ws';
+                if (eps.length >= 2 && !isProblematic) {
                     lines.push({
                         sourceId: `555_${idx}`,
                         sourceName: `555·${lineName}`,
@@ -1050,6 +1052,7 @@
                 lowLatencyMode: false,
                 maxAudioFramesDrift: 4, // 允许适度容忍4帧微漂移，由播放器平滑对齐，杜绝硬拉伸变调
                 forceKeyFrameOnDiscontinuity: true, // 核心：断点强制对齐关键帧，彻底根治插播广告引发的变声
+                backBufferLength: 15, // 及时释放已播放旧切片缓冲区，避免多断点导致 SourceBuffer 碎片累积与声卡时钟崩溃
                 appendErrorMaxRetry: 5,
                 autoStartLoad: true
             });
