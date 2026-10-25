@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.5.0
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P线路，一键切换极清画质，免除VIP限制，精细去广告并保护UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.6.0
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，一键切换极清画质，免除VIP限制，精细去广告并保护UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -16,6 +16,9 @@
 // @connect      55dy60.com
 // @connect      555dy.net
 // @connect      ddys.io
+// @connect      ddys.one
+// @connect      xluuss.com
+// @connect      gsuus.com
 // @connect      fengbao13.com
 // @connect      v.fengbao14.com
 // @connect      bfzyapi.com
@@ -34,7 +37,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.5.0) - 引入 555 电影与低端影视极速蓝光线路集群`);
+    console.log(`${TAG} 脚本已启动 (v2.6.0) - 引入 555 电影与低端影视极速蓝光与新浪纯净线路集群`);
 
     // =========================================================================
     // 0. 线路配置 (支持多源自动容灾检索)
@@ -288,8 +291,14 @@
     }
 
     // =========================================================================
-    // 3. 第三方影视源检索：555电影专属集群 + 低端影视专属1080P + 官方独立切片源
+    // 3. 第三方影视源检索：555电影专属集群 + 低端影视专属1080P/新浪极清 + 官方独立切片源
     // =========================================================================
+    function getRefererForUrl(url) {
+        if (url.includes('ddys.one')) return 'https://ddys.one/';
+        if (url.includes('ddys.io')) return 'https://ddys.io/';
+        return 'https://555k06.com/';
+    }
+
     function requestText(url, headers = {}) {
         return new Promise((resolve, reject) => {
             if (typeof GM_xmlhttpRequest !== 'undefined') {
@@ -298,7 +307,7 @@
                     url: url,
                     timeout: 7000,
                     headers: Object.assign({
-                        'Referer': url.includes('ddys.io') ? 'https://ddys.io/' : 'https://555k06.com/',
+                        'Referer': getRefererForUrl(url),
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
                     }, headers),
                     onload: res => resolve(res.responseText || ''),
@@ -506,6 +515,79 @@
         }
     }
 
+    // 核心：深度解析低端影视 DDrk 架构 (ddys.one) 专属极清「X节点 (新浪1080P)」
+    async function searchDDYSOneLine(keywords) {
+        const host = 'https://ddys.one';
+        let vodPath = null;
+        let vodTitle = '';
+
+        for (const kw of keywords) {
+            try {
+                const searchHtml = await requestText(`${host}/?s=${encodeURIComponent(kw)}&post_type=post`, {
+                    'Referer': 'https://ddys.one/'
+                });
+                const m = searchHtml.match(/<a\s+href="(\/vod\/\d+\/)"\s+rel="bookmark">([^<]+)<\/a>/i);
+                if (m) {
+                    vodPath = m[1];
+                    vodTitle = m[2].trim();
+                    console.log(`${TAG} DDYS.one匹配影片: ${vodTitle} (${vodPath}), 关键词: ${kw}`);
+                    break;
+                }
+            } catch (e) {}
+        }
+
+        if (!vodPath) return null;
+
+        try {
+            const vodIdMatch = vodPath.match(/\d+/);
+            if (!vodIdMatch) return null;
+            const vodId = vodIdMatch[0];
+
+            const detailHtml = await requestText(`${host}${vodPath}`, {
+                'Referer': 'https://ddys.one/'
+            });
+
+            const epMatches = [...detailHtml.matchAll(/<div class="wp-playlist-item"[^>]*ep_slug="([^"]+)"[^>]*>([\s\S]*?)<\/div>/gi)];
+            if (!epMatches || epMatches.length === 0) return null;
+
+            const eps = [];
+            for (let i = 0; i < epMatches.length; i++) {
+                const em = epMatches[i];
+                const slug = em[1];
+                const rawTitle = em[2].replace(/<[^>]+>/g, '').trim();
+                const numMatch = rawTitle.match(/\d+/);
+                const num = numMatch ? String(parseInt(numMatch[0], 10)) : String(i + 1);
+                eps.push({
+                    title: rawTitle,
+                    num: num,
+                    slug: slug,
+                    vodId: vodId,
+                    url: ''
+                });
+            }
+
+            // 按集数升序排列方便顺序定位
+            eps.sort((a, b) => {
+                const na = parseInt(a.num, 10);
+                const nb = parseInt(b.num, 10);
+                if (!isNaN(na) && !isNaN(nb)) return na - nb;
+                return 0;
+            });
+
+            return {
+                sourceId: 'ddys_one_xlzy',
+                sourceName: 'DDYS·X节点 (新浪1080P)',
+                is555: false,
+                isDDYSOne: true,
+                vodName: vodTitle,
+                episodes: eps
+            };
+        } catch (err) {
+            console.warn(`${TAG} DDYS.one详情解析异常:`, err);
+            return null;
+        }
+    }
+
     async function searchHighDefinitionStreams(title) {
         if (!title) return [];
         const keywords = generateKeywords(title);
@@ -522,7 +604,7 @@
             }
         } catch (e) {}
 
-        // 2. 检索并接入低端影视 (DDYS) 专属「播放源 2 (1080P)」
+        // 2. 检索并接入低端影视 (DDYS.io) 专属「播放源 2 (1080P)」
         try {
             const ddysLine = await searchDDYSLine(keywords);
             if (ddysLine) {
@@ -531,7 +613,16 @@
             }
         } catch (e) {}
 
-        // 3. 同时检索官方独立采集站直连线路作为双重容灾保障
+        // 3. 检索并接入低端影视 DDrk (DDYS.one) 专属「X节点 (新浪1080P)」
+        try {
+            const ddysOneLine = await searchDDYSOneLine(keywords);
+            if (ddysOneLine) {
+                matchedSources.push(ddysOneLine);
+                console.log(`${TAG} 成功载入低端影视DDrk专属线路: ${ddysOneLine.sourceName} (${ddysOneLine.episodes.length} 集)`);
+            }
+        } catch (e) {}
+
+        // 4. 同时检索官方独立采集站直连线路作为多重容灾保障
         for (const kw of keywords) {
             for (const src of SOURCES) {
                 // 如果该独立源已添加，跳过
@@ -825,6 +916,28 @@
                 }
             } catch (err) {
                 console.warn(`${TAG} 555切片直链解析异常:`, err);
+            }
+        }
+
+        // 针对 ddys.one 线路实时提取真实直链 (优先锁定纯净无广告的 X节点/xlzy，其次B节点/bfzy)
+        if (currentSource.isDDYSOne && !matchedEp.url) {
+            showLoading(`正在连接 [${currentSource.sourceName}] ${matchedEp.title}...`);
+            try {
+                const playsUrl = `https://ddys.one/ddrk_plays/${matchedEp.vodId}/${matchedEp.slug}`;
+                const playsHtml = await requestText(playsUrl, {
+                    'Referer': `https://ddys.one/vod/${matchedEp.vodId}/`
+                });
+                const parsed = JSON.parse(playsHtml);
+                const plays = parsed.video_plays || [];
+                const bestPlay = plays.find(p => p.src_site === 'xlzy') ||
+                                 plays.find(p => p.src_site === 'bfzy') ||
+                                 plays.find(p => p.src_site === 'gszy') ||
+                                 plays[0];
+                if (bestPlay && bestPlay.play_data) {
+                    matchedEp.url = normalizeM3u8Url(bestPlay.play_data);
+                }
+            } catch (err) {
+                console.warn(`${TAG} ddys.one切片直链解析异常:`, err);
             }
         }
 
