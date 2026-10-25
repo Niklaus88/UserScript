@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.7.0
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，一键切换极清画质，免除VIP限制，深度净网去广告，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.7.1
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，一键切换极清画质，免除VIP限制，深度净网去广告，智能识别电影单片与剧集（杜绝电影误显集数），全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -38,7 +38,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.7.0) - 深度净网去广告与多线路极清集群就绪`);
+    console.log(`${TAG} 脚本已启动 (v2.7.1) - 智能识别电影/连续剧与多线路极清集群就绪`);
 
     // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
     try {
@@ -58,7 +58,8 @@
 
     // 全局当前状态
     let currentVideoTitle = '';
-    let currentEpisodeNum = '1';
+    let currentEpisodeNum = ''; // 默认为空（电影/单片无集数，多集剧集才记录数字）
+    let isMovieMode = false;    // 标识是否为电影单片模式
     let artInstance = null;
     let isHdActive = false;
     let currentMatchedList = [];
@@ -78,10 +79,21 @@
         items.forEach(info => {
             if (!info || typeof info !== 'object') return;
 
+            // 识别是否为电影类别
+            if (info.typeName === '电影' || info.channelName === '电影' || info.columnName === '电影' || info.type === 'movie' || info.channel === 'movie') {
+                isMovieMode = true;
+            }
+
             if (info.mediaTitle) {
-                const epMatch = String(info.mediaTitle).match(/\d+/);
+                // 彻底清洗清晰度与质量标签（杜绝将 576P / 720P / 1080P 误提取为第 576 集）
+                const cleanMediaTitle = String(info.mediaTitle)
+                    .replace(/\b\d{3,4}[pP]\b|\b[24]k\b|1080[pP]|720[pP]|576[pP]|480[pP]/gi, '')
+                    .replace(/超清|高清|标清|蓝光|原画|正片|国语|粤语|英语/g, '')
+                    .trim();
+                const epMatch = cleanMediaTitle.match(/第\s*(\d+)\s*[集话期]/) || cleanMediaTitle.match(/^\s*0*(\d{1,4})\s*$/);
                 if (epMatch) {
-                    currentEpisodeNum = String(parseInt(epMatch[0], 10));
+                    currentEpisodeNum = String(parseInt(epMatch[1], 10));
+                    isMovieMode = false;
                     console.log(`${TAG} 接口捕获当前播放集数: 第 ${currentEpisodeNum} 集`);
                 }
             }
@@ -114,13 +126,21 @@
     function handleDetailResponse(json) {
         if (!json || !json.data) return;
         const info = Array.isArray(json.data.info) && json.data.info[0] ? json.data.info[0] : json.data;
-        if (info && (info.title || info.name || info.videoName)) {
-            const raw = info.title || info.name || info.videoName;
-            const parsed = parseTitleAndEp(raw);
-            if (parsed.title) currentVideoTitle = parsed.title;
-            if (parsed.ep) currentEpisodeNum = parsed.ep;
-            console.log(`${TAG} 接口捕获剧名: [${currentVideoTitle}], 集数: [${currentEpisodeNum}]`);
-            scheduleRefresh();
+        if (info) {
+            if (info.typeName === '电影' || info.channelName === '电影' || info.columnName === '电影' || info.type === 'movie' || info.channel === 'movie') {
+                isMovieMode = true;
+            }
+            if (info.title || info.name || info.videoName) {
+                const raw = info.title || info.name || info.videoName;
+                const parsed = parseTitleAndEp(raw);
+                if (parsed.title) currentVideoTitle = parsed.title;
+                if (parsed.ep) {
+                    currentEpisodeNum = parsed.ep;
+                    isMovieMode = false;
+                }
+                console.log(`${TAG} 接口捕获影视: [${currentVideoTitle}], 类型: [${isMovieMode ? '电影单片' : '连续剧'}], 集数: [${currentEpisodeNum || '无集数'}]`);
+                scheduleRefresh();
+            }
         }
     }
 
@@ -303,20 +323,44 @@
     }
 
     function detectVideoInfoFromDOM() {
-        // 1. 抓取剧名
+        // 1. 判断是否为电影单片（检查页面是否存在多集列表，以及分类标签）
+        const epItems = document.querySelectorAll('.player-media-list a, .player-media-list button, .player-media-list li, .episode-item, .ep-item, .anthology-item, .video-episode-item, [class*="episode-item"]');
+        const hasMovieTag = Array.from(document.querySelectorAll('.tag, .genre, .breadcrumb, .video-tag, .info-item, .info-tags span, .label, a[href*="movie"], .detail-info-item')).some(el => {
+            const txt = (el.textContent || '').trim();
+            return txt === '电影' || txt.includes('电影');
+        });
+
+        if (hasMovieTag || epItems.length <= 1) {
+            // 明确标记为电影，或者页面不存在大于1集的选集列表时，判定为单片/电影模式
+            if (epItems.length <= 1) {
+                isMovieMode = true;
+            }
+        } else if (epItems.length > 1) {
+            isMovieMode = false;
+        }
+
+        // 2. 抓取影视名称
         if (!currentVideoTitle) {
             const titleEl = document.querySelector('.title, .video-name, .n-media-title, h1');
             const raw = titleEl ? titleEl.textContent : document.title;
             const parsed = parseTitleAndEp(raw);
             if (parsed.title) currentVideoTitle = parsed.title;
-            if (parsed.ep && (!currentEpisodeNum || currentEpisodeNum === '1')) currentEpisodeNum = parsed.ep;
+            if (parsed.ep && !isMovieMode) {
+                currentEpisodeNum = parsed.ep;
+                isMovieMode = false;
+            }
         }
 
-        // 2. 抓取集数
-        const activeEp = document.querySelector('.player-media-list .active, .episode-item.active, .ep-item.active');
-        if (activeEp && activeEp.textContent) {
-            const m = activeEp.textContent.match(/\d+/);
-            if (m) currentEpisodeNum = String(parseInt(m[0], 10));
+        // 3. 抓取集数（仅在连续剧多集模式下生效，电影严格不设集数）
+        if (!isMovieMode) {
+            const activeEp = document.querySelector('.player-media-list .active, .episode-item.active, .ep-item.active, .anthology-item.active');
+            if (activeEp && activeEp.textContent) {
+                const m = activeEp.textContent.match(/\d+/);
+                if (m) currentEpisodeNum = String(parseInt(m[0], 10));
+            }
+            if (!currentEpisodeNum) currentEpisodeNum = '1';
+        } else {
+            currentEpisodeNum = '';
         }
     }
 
@@ -817,7 +861,7 @@
                     </div>
                     <div class="yfsp-hd-actions">
                         <select id="yfsp-hd-source-select" class="yfsp-hd-select"></select>
-                        <button id="yfsp-hd-close-btn" class="yfsp-hd-close" type="button" title="返回爱壹帆原版">✕ 返回原版(576P)</button>
+                        <button id="yfsp-hd-close-btn" class="yfsp-hd-close" type="button" title="返回爱壹帆原版播放">✕ 返回原版</button>
                     </div>
                 </div>
                 <div id="yfsp-artplayer-container" class="yfsp-artplayer-container">
@@ -908,13 +952,15 @@
 
         // 提取剧名与集数
         detectVideoInfoFromDOM();
-        const title = currentVideoTitle || '当前剧集';
-        const ep = currentEpisodeNum || '1';
+        const title = currentVideoTitle || '当前影视';
+        const hasEp = !isMovieMode && currentEpisodeNum;
+        const epDisplay = hasEp ? ` (第 ${currentEpisodeNum} 集)` : '';
+        const searchMsg = hasEp ? `第 ${currentEpisodeNum} 集` : '正片';
 
         const titleText = document.getElementById('yfsp-hd-title-text');
-        if (titleText) titleText.textContent = `${title} (第 ${ep} 集)`;
+        if (titleText) titleText.textContent = `${title}${epDisplay}`;
 
-        showLoading(`正在为您检索《${title}》第 ${ep} 集真 1080P 切片...`);
+        showLoading(`正在为您检索《${title}》${searchMsg}真 1080P 切片...`);
 
         // 开始检索
         const matchedSources = await searchHighDefinitionStreams(title);
@@ -943,20 +989,27 @@
         if (!currentMatchedList || !currentMatchedList.length) return;
         const currentSource = currentMatchedList[selectedSourceIndex] || currentMatchedList[0];
 
-        const targetEp = currentEpisodeNum || '1';
-        let matchedEp = currentSource.episodes.find(e => e.num === targetEp);
+        let matchedEp = null;
+        if (isMovieMode || !currentEpisodeNum) {
+            // 电影单片模式：优先匹配标题包含“正片/HD/BD”的切片，或首个切片
+            matchedEp = currentSource.episodes.find(e => e.title && (e.title.includes('正片') || e.title.includes('HD') || e.title.includes('BD'))) || currentSource.episodes[0];
+        } else {
+            const targetEp = currentEpisodeNum || '1';
+            matchedEp = currentSource.episodes.find(e => e.num === targetEp);
 
-        // 容错：如果编号未匹配，尝试按单集标题包含或序号索引
-        if (!matchedEp) {
-            matchedEp = currentSource.episodes.find(e => e.title.includes(targetEp));
-        }
-        if (!matchedEp && currentSource.episodes.length > 0) {
-            const idx = parseInt(targetEp, 10) - 1;
-            matchedEp = currentSource.episodes[idx] || currentSource.episodes[currentSource.episodes.length - 1];
+            // 容错：如果编号未匹配，尝试按单集标题包含或序号索引
+            if (!matchedEp) {
+                matchedEp = currentSource.episodes.find(e => e.title.includes(targetEp));
+            }
+            if (!matchedEp && currentSource.episodes.length > 0) {
+                const idx = parseInt(targetEp, 10) - 1;
+                matchedEp = currentSource.episodes[idx] || currentSource.episodes[currentSource.episodes.length - 1];
+            }
         }
 
         if (!matchedEp) {
-            showErrorUI(`在 [${currentSource.sourceName}] 中未找到第 ${targetEp} 集切片`, currentVideoTitle);
+            const errLabel = isMovieMode ? '正片' : `第 ${currentEpisodeNum || '1'} 集`;
+            showErrorUI(`在 [${currentSource.sourceName}] 中未找到${errLabel}切片`, currentVideoTitle);
             return;
         }
 
@@ -1025,7 +1078,16 @@
         console.log(`${TAG} 最终播放流: [${currentSource.sourceName}] ${matchedEp.title} -> ${matchedEp.url}`);
 
         const titleText = document.getElementById('yfsp-hd-title-text');
-        if (titleText) titleText.textContent = `${currentVideoTitle} - ${matchedEp.title} [${currentSource.sourceName}]`;
+        if (titleText) {
+            if (isMovieMode) {
+                // 电影模式：若标题是“正片”或原片名，友好展示；若为“第1集”等上游模板字样则省略，保持纯净电影标题
+                const isGenericEp = /^(第\s*1\s*集|0?1)$/.test((matchedEp.title || '').trim());
+                const epSuffix = isGenericEp ? '' : ` - ${matchedEp.title}`;
+                titleText.textContent = `${currentVideoTitle}${epSuffix} [${currentSource.sourceName}]`;
+            } else {
+                titleText.textContent = `${currentVideoTitle} - ${matchedEp.title} [${currentSource.sourceName}]`;
+            }
+        }
 
         renderPlayer(matchedEp.url);
     }
@@ -1279,7 +1341,7 @@
     function scheduleRefresh() {
         detectVideoInfoFromDOM();
         injectUI();
-        if (isHdActive && currentEpisodeNum && currentEpisodeNum !== lastEp) {
+        if (isHdActive && !isMovieMode && currentEpisodeNum && currentEpisodeNum !== lastEp) {
             lastEp = currentEpisodeNum;
             playCurrentEpisodeInHd();
         }
@@ -1291,7 +1353,9 @@
         }
         if (location.href !== lastUrl) {
             lastUrl = location.href;
-            currentEpisodeNum = '1';
+            currentEpisodeNum = '';
+            isMovieMode = false;
+            lastEp = '';
             setTimeout(scheduleRefresh, 600);
         }
         detectVideoInfoFromDOM();
