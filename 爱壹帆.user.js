@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.6.9
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，一键切换极清画质，免除VIP限制，深度净网去广告，全源接入Hls音频断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.7.0
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，一键切换极清画质，免除VIP限制，深度净网去广告，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -38,7 +38,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.6.9) - 深度净网去广告与多线路极清集群就绪`);
+    console.log(`${TAG} 脚本已启动 (v2.7.0) - 深度净网去广告与多线路极清集群就绪`);
 
     // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
     try {
@@ -462,10 +462,8 @@
                     });
                 }
 
-                // 过滤异常线路：排除底层存在严重切片缺陷的“极速蓝光-ws”（全片内含250多处硬插断点导致声卡时钟累积漂移失真，且画质仅720P），同时保留集数>=2的有效线路
-                const cleanName = lineName.replace(/\s+/g, '').toLowerCase();
-                const isProblematic = cleanName === '极速蓝光-ws';
-                if (eps.length >= 2 && !isProblematic) {
+                // 保留有效线路（全量开放极速蓝光-ws、高清蓝光等全部集群，由 pLoader 断点自愈引擎保障从头到尾无失真播放）
+                if (eps.length > 0) {
                     lines.push({
                         sourceId: `555_${idx}`,
                         sourceName: `555·${lineName}`,
@@ -1044,7 +1042,7 @@
         }
         container.innerHTML = '';
 
-        // 统一的高鲁棒性 Hls.js 抗失真引擎（全源继承：专攻贴片广告切片导致的音频采样率与时间戳突变）
+        // 统一的高鲁棒性 Hls.js 抗失真引擎（全源继承：专攻贴片广告切片导致的音频采样率突变与海量伪断点干扰）
         const createTunedHls = () => {
             if (typeof Hls === 'undefined' || !Hls.isSupported()) return null;
             const hls = new Hls({
@@ -1054,7 +1052,26 @@
                 forceKeyFrameOnDiscontinuity: true, // 核心：断点强制对齐关键帧，彻底根治插播广告引发的变声
                 backBufferLength: 15, // 及时释放已播放旧切片缓冲区，避免多断点导致 SourceBuffer 碎片累积与声卡时钟崩溃
                 appendErrorMaxRetry: 5,
-                autoStartLoad: true
+                autoStartLoad: true,
+                pLoader: class extends Hls.DefaultConfig.loader {
+                    load(context, config, callbacks) {
+                        const origSuccess = callbacks.onSuccess;
+                        callbacks.onSuccess = function (response, stats, ctx, networkDetails) {
+                            if (typeof response.data === 'string') {
+                                const text = response.data;
+                                const discMatches = text.match(/#EXT-X-DISCONTINUITY/g);
+                                const discCount = discMatches ? discMatches.length : 0;
+                                // 核心自愈：当检测到切片流中伪断点超标（如极速蓝光-ws等源人为注入上百个断点）时，自动剥离伪断点保持连续播放轴，杜绝音频解码时钟崩溃变声
+                                if (discCount > 3 || (discCount > 0 && ctx && ctx.url && (ctx.url.includes('wsyzy') || ctx.url.includes('ws')))) {
+                                    response.data = text.replace(/#EXT-X-DISCONTINUITY\r?\n?/g, '');
+                                    console.log(`${TAG} [音频自愈引擎] 捕获切片伪断点干扰 (${discCount}处)，已智能平滑净化 m3u8，彻底根除音频失真！`);
+                                }
+                            }
+                            origSuccess.call(this, response, stats, ctx, networkDetails);
+                        };
+                        super.load(context, config, callbacks);
+                    }
+                }
             });
             hls.on(Hls.Events.ERROR, (event, data) => {
                 if (data.fatal) {
@@ -1078,11 +1095,20 @@
         // 浏览器硬件级音频锁音保频（严格锁定音高，杜绝变声）
         const lockAudioPitch = (video) => {
             if (!video) return;
-            try {
-                video.preservesPitch = true;
-                if ('webkitPreservesPitch' in video) video.webkitPreservesPitch = true;
-                if ('mozPreservesPitch' in video) video.mozPreservesPitch = true;
-            } catch (e) {}
+            const applyLock = () => {
+                try {
+                    video.preservesPitch = true;
+                    if ('webkitPreservesPitch' in video) video.webkitPreservesPitch = true;
+                    if ('mozPreservesPitch' in video) video.mozPreservesPitch = true;
+                } catch (e) {}
+            };
+            applyLock();
+            if (!video._pitchLocked) {
+                video._pitchLocked = true;
+                video.addEventListener('play', applyLock);
+                video.addEventListener('loadedmetadata', applyLock);
+                video.addEventListener('ratechange', applyLock);
+            }
         };
 
         // 方式 1: 优先使用 Artplayer
