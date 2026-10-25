@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.6.2
+// @version      2.6.3
 // @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，一键切换极清画质，免除VIP限制，深度净网去广告并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
@@ -37,7 +37,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.6.2) - 深度净网去广告与多线路极清集群就绪`);
+    console.log(`${TAG} 脚本已启动 (v2.6.3) - 深度净网去广告与多线路极清集群就绪`);
 
     // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
     try {
@@ -433,8 +433,11 @@
                     });
                 }
 
-                // 过滤异常线路：排除“高清蓝光”（555站内加密/失效线），同时保留集数>=2的有效线路
-                const isProblematic = lineName.replace(/\s+/g, '') === '高清蓝光';
+                // 过滤异常/失效线路：排除用户指定失效的“高清蓝光”、“极速蓝光-R”、“极速蓝光-b”，同时保留集数>=2的有效线路
+                const cleanName = lineName.replace(/\s+/g, '').toLowerCase();
+                const isProblematic = cleanName === '高清蓝光' ||
+                                      cleanName === '极速蓝光-r' ||
+                                      cleanName === '极速蓝光-b';
                 if (eps.length >= 2 && !isProblematic) {
                     lines.push({
                         sourceId: `555_${idx}`,
