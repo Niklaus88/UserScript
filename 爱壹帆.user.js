@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.6.7
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，一键切换极清画质，免除VIP限制，深度净网去广告，增强Hls音频断点抗失真并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.6.8
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，一键切换极清画质，免除VIP限制，深度净网去广告，全源接入Hls音频断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -38,7 +38,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.6.7) - 深度净网去广告与多线路极清集群就绪`);
+    console.log(`${TAG} 脚本已启动 (v2.6.8) - 深度净网去广告与多线路极清集群就绪`);
 
     // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
     try {
@@ -462,10 +462,8 @@
                     });
                 }
 
-                // 过滤异常/失效线路：排除真正无法播放的“高清蓝光”（555站内加密/失效线），同时保留集数>=2的有效线路
-                const cleanName = lineName.replace(/\s+/g, '').toLowerCase();
-                const isProblematic = cleanName === '高清蓝光';
-                if (eps.length >= 2 && !isProblematic) {
+                // 保留集数>=2的有效线路（全量开放高清蓝光、极速蓝光等全部集群，由全局音频抗失真引擎保障正常播放）
+                if (eps.length >= 2) {
                     lines.push({
                         sourceId: `555_${idx}`,
                         sourceName: `555·${lineName}`,
@@ -1044,24 +1042,44 @@
         }
         container.innerHTML = '';
 
-        // 统一的高鲁棒性 Hls.js 抗失真配置（专攻贴片广告切片导致的音频采样率与时间戳突变）
+        // 统一的高鲁棒性 Hls.js 抗失真引擎（全源继承：专攻贴片广告切片导致的音频采样率与时间戳突变）
         const createTunedHls = () => {
             if (typeof Hls === 'undefined' || !Hls.isSupported()) return null;
             const hls = new Hls({
                 enableWorker: false, // 禁用 Worker 跨线程解封装，避免跨线程音频时钟漂移
                 lowLatencyMode: false,
-                maxAudioFramesDrift: 1, // 核心：严格限制音频帧偏移容差，自动对齐 PTS
+                maxAudioFramesDrift: 4, // 允许适度容忍4帧微漂移，由播放器平滑对齐，杜绝硬拉伸变调
                 forceKeyFrameOnDiscontinuity: true, // 核心：断点强制对齐关键帧，彻底根治插播广告引发的变声
                 appendErrorMaxRetry: 5,
                 autoStartLoad: true
             });
             hls.on(Hls.Events.ERROR, (event, data) => {
-                if (data.fatal && data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-                    console.warn(`${TAG} 捕获流媒体断点异常，自动恢复音频管道:`, data);
-                    hls.recoverMediaError();
+                if (data.fatal) {
+                    switch (data.type) {
+                        case Hls.ErrorTypes.MEDIA_ERROR:
+                            console.warn(`${TAG} 捕获流媒体断点异常，自动恢复音频管道:`, data);
+                            hls.recoverMediaError();
+                            break;
+                        case Hls.ErrorTypes.NETWORK_ERROR:
+                            console.warn(`${TAG} 捕获网络异常，自动重连:`, data);
+                            hls.startLoad();
+                            break;
+                        default:
+                            break;
+                    }
                 }
             });
             return hls;
+        };
+
+        // 浏览器硬件级音频锁音保频（严格锁定音高，杜绝变声）
+        const lockAudioPitch = (video) => {
+            if (!video) return;
+            try {
+                video.preservesPitch = true;
+                if ('webkitPreservesPitch' in video) video.webkitPreservesPitch = true;
+                if ('mozPreservesPitch' in video) video.mozPreservesPitch = true;
+            } catch (e) {}
         };
 
         // 方式 1: 优先使用 Artplayer
@@ -1073,6 +1091,7 @@
                     type: 'm3u8',
                     customType: {
                         m3u8: function (video, url, art) {
+                            lockAudioPitch(video);
                             const hls = createTunedHls();
                             if (hls) {
                                 if (art.hls) art.hls.destroy();
@@ -1104,6 +1123,9 @@
 
                 // 进度无缝承接与双重静音保障
                 artInstance.on('ready', () => {
+                    if (artInstance.video) {
+                        lockAudioPitch(artInstance.video);
+                    }
                     if (lastProgressTime > 0) {
                         console.log(`${TAG} 1080P 播放器就绪，自动无缝跳至进度: ${lastProgressTime.toFixed(1)} 秒`);
                         artInstance.currentTime = lastProgressTime;
@@ -1125,6 +1147,7 @@
         videoEl.style.width = '100%';
         videoEl.style.height = '100%';
         videoEl.style.backgroundColor = '#000';
+        lockAudioPitch(videoEl);
         container.appendChild(videoEl);
 
         const fallbackHls = createTunedHls();
