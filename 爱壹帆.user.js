@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.6.4
+// @version      2.6.5
 // @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，一键切换极清画质，免除VIP限制，深度净网去广告并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
@@ -33,11 +33,12 @@
 
 (function () {
     'use strict';
+    /* global Artplayer, Hls, GM_xmlhttpRequest, unsafeWindow */
 
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.6.4) - 深度净网去广告与多线路极清集群就绪`);
+    console.log(`${TAG} 脚本已启动 (v2.6.5) - 深度净网去广告与多线路极清集群就绪`);
 
     // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
     try {
@@ -52,7 +53,7 @@
         { id: 'bfzy', name: '暴风线路 (1080P极清)', api: 'https://bfzyapi.com/api.php/provide/vod/?ac=detail&wd=' },
         { id: 'subo', name: '速播线路 (1080P高清)', api: 'https://subocaiji.com/api.php/provide/vod/?ac=detail&wd=' },
         { id: 'hhzy', name: '红牛线路 (1080P高清)', api: 'https://hhzyapi.com/api.php/provide/vod/?ac=detail&wd=' },
-        { id: 'lzi',  name: '量子线路 (备用高清)', api: 'https://cj.lziapi.com/api.php/provide/vod/?ac=detail&wd=' }
+        { id: 'lzi', name: '量子线路 (备用高清)', api: 'https://cj.lziapi.com/api.php/provide/vod/?ac=detail&wd=' }
     ];
 
     // 全局当前状态
@@ -89,8 +90,8 @@
             info.needLogin = false;
             info.isLimitStream = false;
             info.isLimitedStream = false;
-            info.isUserFilterAd = true;  // 关键：免广告白名单
-            info.maxFrontAds = 0;        // 关键：片头广告数置 0
+            info.isUserFilterAd = true; // 关键：免广告白名单
+            info.maxFrontAds = 0; // 关键：片头广告数置 0
             if (Array.isArray(info.startData)) info.startData = [];
             if (Array.isArray(info.pauseData)) info.pauseData = [];
 
