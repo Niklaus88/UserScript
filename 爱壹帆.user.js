@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.3.0
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，一键切换极清画质，免除VIP限制与画质封锁，彻底去除片头及暂停广告与推广挂件，支持多线路自由切换与进度无缝同步
+// @version      2.3.1
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，一键切换极清画质，免除VIP限制与画质封锁，精细去除片内广告，完美保留UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Niklaus88
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -27,7 +27,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.3.0) - 真1080P第三方高清聚合源引擎 + 深度去广告`);
+    console.log(`${TAG} 脚本已启动 (v2.3.1) - 精细去广告 + 保护UP主关注卡片`);
 
     // =========================================================================
     // 0. 线路配置 (支持多源自动容灾检索)
@@ -777,19 +777,42 @@
         detectVideoInfoFromDOM();
         injectUI();
 
-        // DOM 深度去广告巡检看门狗 (清除“暂时无法显示广告”、右角推广等残留)
+        // 辅助检测：绝对保护右侧 UP 主卡片与关注按钮，严禁误伤
+        function isAuthorOrEssential(el) {
+            if (!el) return false;
+            if (el.closest('.uploader, .author-block, .name-card, .user-block, .user-center, app-user-meta, app-user-card, [class*="uploader"], [class*="user-status"]')) {
+                return true;
+            }
+            const text = el.textContent || '';
+            if (text.includes('关注') || text.includes('已关注') || text.includes('粉丝')) {
+                return true;
+            }
+            return false;
+        }
+
+        // DOM 深度去广告巡检看门狗 (精确清理片头倒计时与卡屏层，绝不触碰右侧关注栏)
         try {
-            const adKeywords = ['暂时无法显示广告', '了解详情', '下载该视频', '跳过广告', '广告剩余'];
+            const adKeywords = ['暂时无法显示广告', '了解详情', '跳过广告', '广告剩余'];
             const allElements = document.querySelectorAll('div, span, p, a, button');
             allElements.forEach(el => {
                 if (el.closest('#yfsp-hd-toolbar') || el.closest('#yfsp-hd-overlay')) return;
+                if (isAuthorOrEssential(el)) return; // 绝对保护作者卡片与关注按钮
+
                 const txt = el.textContent ? el.textContent.trim() : '';
 
-                if (txt === '广告' || adKeywords.some(kw => txt.includes(kw))) {
-                    const adContainer = el.closest('[class*="ad"], [class*="mask"], [class*="tip"], [class*="wrap"], [class*="box"]') || el.parentElement;
-                    if (adContainer && !adContainer.contains(document.querySelector('video'))) {
-                        adContainer.style.setProperty('display', 'none', 'important');
-                        adContainer.style.setProperty('visibility', 'hidden', 'important');
+                // 仅清理视频播放器内部的“广告”角标
+                if (txt === '广告' && el.closest('.video-player, .publicplay, .aa-videoplayer-wrap')) {
+                    el.style.setProperty('display', 'none', 'important');
+                } else if (adKeywords.some(kw => txt.includes(kw))) {
+                    const mask = el.closest('.video-front-ad, .video-pause-ad, .player-ad, [class*="mask"]') || el;
+                    if (!isAuthorOrEssential(mask)) {
+                        mask.style.setProperty('display', 'none', 'important');
+                    }
+                } else if (txt.includes('下载该视频')) {
+                    // 仅精确隐藏下载推广自身小挂件，绝不往上扩大到整个侧边栏
+                    const tip = el.closest('.download-tip, [class*="download"]') || el;
+                    if (!isAuthorOrEssential(tip)) {
+                        tip.style.setProperty('display', 'none', 'important');
                     }
                 }
             });
@@ -810,20 +833,34 @@
         const style = document.createElement('style');
         style.id = 'yfsp-hd-style';
         style.textContent = `
-            /* 深度隐藏所有爱壹帆官方广告、片头倒计时、弹窗、暂停广告与右角浮动推广 */
-            .player-ad, .video-ad, .pause-ad, .ad-box, .app-ad,
-            .video-pause-ad, .video-front-ad, .ad-mark, .ad-tips,
-            [class*="ad-container"], [class*="advert"], [id*="advert"],
-            .ad-banner, .ad-title, [class*="download-tip"],
-            .player-ads-wrap, .public-ad, .ads-layer, .ad-item,
-            div[class*="pause-banner"], div[class*="front-ad"],
-            .aa-ad-wrap, .video-ads, app-ad {
+            /* 严格限定在视频播放窗口内部隐藏广告组件，绝不误杀右侧 UP 主关注卡片 */
+            .video-player .player-ad,
+            .video-player .video-ad,
+            .video-player .pause-ad,
+            .video-player .video-pause-ad,
+            .video-player .video-front-ad,
+            .video-player .ad-mark,
+            .video-player .ad-tips,
+            .video-player .player-ads-wrap,
+            .video-player .ads-layer,
+            .video-player .aa-ad-wrap,
+            .video-player [class*="video-front-ad"],
+            .video-player [class*="video-pause-ad"],
+            .publicplay .video-front-ad,
+            .publicplay .video-pause-ad {
                 display: none !important;
                 opacity: 0 !important;
                 pointer-events: none !important;
                 visibility: hidden !important;
                 width: 0 !important;
                 height: 0 !important;
+            }
+
+            /* 显式保障右侧 UP 主加关注卡片始终正常显示与对齐 */
+            .uploader, .author-block, .name-card, .user-block, app-user-meta {
+                display: flex !important;
+                visibility: visible !important;
+                opacity: 1 !important;
             }
 
             /* 悬浮换源胶囊按钮 (固定停靠在播放器右上角) */
