@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.6.3
+// @version      2.6.4
 // @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，一键切换极清画质，免除VIP限制，深度净网去广告并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
@@ -37,7 +37,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.6.3) - 深度净网去广告与多线路极清集群就绪`);
+    console.log(`${TAG} 脚本已启动 (v2.6.4) - 深度净网去广告与多线路极清集群就绪`);
 
     // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
     try {
@@ -383,6 +383,34 @@
             return url.replace(/\/+$/, '') + '/index.m3u8';
         }
         return url;
+    }
+
+    // 快速探活切片流是否真实可用（非404/403/HTML报错）
+    function checkStreamPlayable(url) {
+        return new Promise(resolve => {
+            if (!url) return resolve(false);
+            if (typeof GM_xmlhttpRequest !== 'undefined') {
+                GM_xmlhttpRequest({
+                    method: 'GET',
+                    url: url,
+                    headers: {
+                        'Range': 'bytes=0-100',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    },
+                    timeout: 2000,
+                    onload: res => {
+                        const ct = (res.responseHeaders || '').toLowerCase();
+                        const isHtml = ct.includes('content-type: text/html');
+                        const isSuccess = res.status >= 200 && res.status < 400 && !isHtml;
+                        resolve(isSuccess);
+                    },
+                    onerror: () => resolve(false),
+                    ontimeout: () => resolve(false)
+                });
+            } else {
+                resolve(true);
+            }
+        });
     }
 
     // 核心：深度解析 555 电影的全部多线路与切片列表
@@ -951,7 +979,7 @@
             }
         }
 
-        // 针对 ddys.one 线路实时提取真实直链 (优先锁定纯净无广告的 X节点/xlzy，其次B节点/bfzy)
+        // 针对 ddys.one 线路实时提取真实直链 (优先锁定纯净无广告的 X节点/xlzy，智能探活备选高可用 1080P 节点)
         if (currentSource.isDDYSOne && !matchedEp.url) {
             showLoading(`正在连接 [${currentSource.sourceName}] ${matchedEp.title}...`);
             try {
@@ -961,12 +989,31 @@
                 });
                 const parsed = JSON.parse(playsHtml);
                 const plays = parsed.video_plays || [];
-                const bestPlay = plays.find(p => p.src_site === 'xlzy') ||
-                                 plays.find(p => p.src_site === 'bfzy') ||
-                                 plays.find(p => p.src_site === 'gszy') ||
-                                 plays[0];
-                if (bestPlay && bestPlay.play_data) {
-                    matchedEp.url = normalizeM3u8Url(bestPlay.play_data);
+
+                // 节点优选优先级：优先极清新浪 xlzy，其次高可用且免防盗链的 ikzy (爱坤1080P)、mdzy (魔都1080P)、gszy (光速)、hnzy (红牛)；避开经常404的 bfzy
+                const priority = ['xlzy', 'ikzy', 'mdzy', 'hnzy', 'gszy', 'jszy', 'bfzy', 'lzzy'];
+                const sortedPlays = [...plays].sort((a, b) => {
+                    const ia = priority.indexOf(a.src_site);
+                    const ib = priority.indexOf(b.src_site);
+                    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+                });
+
+                // 智能快速验活：按优先级探测找到第一个真实存活（非404/403/HTML报错）的有效流
+                for (const p of sortedPlays) {
+                    if (p && p.play_data) {
+                        const candidate = normalizeM3u8Url(p.play_data);
+                        const isAlive = await checkStreamPlayable(candidate);
+                        if (isAlive) {
+                            matchedEp.url = candidate;
+                            console.log(`${TAG} ddys.one 自动锁定可用切片节点: [${p.src_site}] -> ${candidate}`);
+                            break;
+                        }
+                    }
+                }
+
+                // 兜底：若网络检测全部超时，使用排序后的第一条
+                if (!matchedEp.url && sortedPlays[0] && sortedPlays[0].play_data) {
+                    matchedEp.url = normalizeM3u8Url(sortedPlays[0].play_data);
                 }
             } catch (err) {
                 console.warn(`${TAG} ddys.one切片直链解析异常:`, err);
