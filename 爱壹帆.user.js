@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.6.1
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，一键切换极清画质，免除VIP限制，深度净网去广告（无痕模式原生免广告）并保护UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.6.2
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，一键切换极清画质，免除VIP限制，深度净网去广告并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -37,7 +37,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.6.1) - 深度净网去广告与多线路极清集群就绪`);
+    console.log(`${TAG} 脚本已启动 (v2.6.2) - 深度净网去广告与多线路极清集群就绪`);
 
     // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
     try {
@@ -1179,7 +1179,7 @@
         // 辅助检测：绝对保护右侧 UP 主卡片与关注按钮，严禁误伤
         function isAuthorOrEssential(el) {
             if (!el) return false;
-            if (el.closest('video-publisher, .video-publisher, .uploader, .author-block, .name-card, .user-block, .user-center, app-user-meta, app-user-card, [class*="uploader"], [class*="user-status"]')) {
+            if (el.closest('video-publisher, .video-publisher, .video-publisher-container, .follow-button, .uploader, .author-block, .name-card, .user-block, .user-center, app-user-meta, app-user-card, [class*="uploader"], [class*="user-status"]')) {
                 return true;
             }
             const text = el.textContent || '';
@@ -1203,7 +1203,7 @@
             adNodes.forEach(el => {
                 if (isAuthorOrEssential(el)) return;
                 let host = el;
-                if (el.parentElement && !isAuthorOrEssential(el.parentElement) && !el.parentElement.matches('body, html, main, .container, app-root')) {
+                if (el.parentElement && !isAuthorOrEssential(el.parentElement) && !el.parentElement.matches('body, html, main, .container, app-root') && el.parentElement.classList.contains('bl')) {
                     host = el.parentElement;
                 }
                 host.style.setProperty('display', 'none', 'important');
@@ -1295,9 +1295,51 @@
                 overflow: hidden !important;
             }
 
-            /* 2. 绝对保障右侧 UP 主关注卡片始终正常显示与完美对齐 */
+            /* 2. 绝对保障右侧 UP 主关注卡片结构完整与完美对齐（保持块级流式布局，防止+关注按钮上浮错位） */
+            .video-publisher-container {
+                display: block !important;
+                position: relative !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                height: auto !important;
+                margin-top: 14px !important;
+            }
+
             video-publisher,
-            .video-publisher,
+            .video-publisher {
+                display: block !important;
+                position: relative !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                width: 100% !important;
+                height: auto !important;
+            }
+
+            video-publisher .publisher {
+                display: block !important;
+                position: relative !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                width: 100% !important;
+            }
+
+            video-publisher .action {
+                display: block !important;
+                position: relative !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                height: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            video-publisher .follow-button {
+                visibility: visible !important;
+                opacity: 1 !important;
+            }
+
             .uploader,
             .author-block,
             .name-card,
@@ -1306,8 +1348,6 @@
                 display: flex !important;
                 visibility: visible !important;
                 opacity: 1 !important;
-                width: auto !important;
-                height: auto !important;
             }
 
             /* 悬浮换源胶囊按钮 (固定停靠在播放器右上角) */
