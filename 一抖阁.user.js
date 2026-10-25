@@ -3,7 +3,7 @@
 // @namespace    https://github.com/Niklaus88/UserScript
 // @version      4.3
 // @description  绕过试看与每日次数限制，自动提取视频直链，拦截广告与弹窗，支持倍速/画中画/键盘快捷键/自动连播下一集/原画高速下载（已修复分类列表误注入与 yidouge.vip 新域名适配）
-// @author       ARE
+// @author       Don E.Knuth
 // @match        *://yidouge.vip/video/*
 // @match        *://*.yidouge.vip/video/*
 // @match        *://yidouge.com/video/*

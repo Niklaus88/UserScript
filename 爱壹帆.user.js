@@ -3,7 +3,7 @@
 // @namespace    https://github.com/Niklaus88/UserScript
 // @version      2.4.0
 // @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，同步引入555电影专属高速蓝光集群，一键切换极清画质，免除VIP限制，精细去广告并保护UP主关注卡片，支持多线路自由切换与进度无缝同步
-// @author       Niklaus88
+// @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
 // @icon         https://www.yfsp.tv/favicon.ico
