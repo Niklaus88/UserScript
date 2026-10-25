@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.4.1
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，同步引入555电影专属高速蓝光集群，一键切换极清画质，免除VIP限制，精细去广告并保护UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.5.0
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P线路，一键切换极清画质，免除VIP限制，精细去广告并保护UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -15,6 +15,9 @@
 // @connect      555k06.com
 // @connect      55dy60.com
 // @connect      555dy.net
+// @connect      ddys.io
+// @connect      fengbao13.com
+// @connect      v.fengbao14.com
 // @connect      bfzyapi.com
 // @connect      suoniapi.com
 // @connect      hhzyapi.com
@@ -31,7 +34,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.4.0) - 引入 555 电影极速蓝光线路集群`);
+    console.log(`${TAG} 脚本已启动 (v2.5.0) - 引入 555 电影与低端影视极速蓝光线路集群`);
 
     // =========================================================================
     // 0. 线路配置 (支持多源自动容灾检索)
@@ -285,19 +288,19 @@
     }
 
     // =========================================================================
-    // 3. 第三方影视源检索：555电影专属集群 + 官方独立切片源
+    // 3. 第三方影视源检索：555电影专属集群 + 低端影视专属1080P + 官方独立切片源
     // =========================================================================
-    function requestText(url) {
+    function requestText(url, headers = {}) {
         return new Promise((resolve, reject) => {
             if (typeof GM_xmlhttpRequest !== 'undefined') {
                 GM_xmlhttpRequest({
                     method: 'GET',
                     url: url,
                     timeout: 7000,
-                    headers: {
-                        'Referer': 'https://555k06.com/',
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-                    },
+                    headers: Object.assign({
+                        'Referer': url.includes('ddys.io') ? 'https://ddys.io/' : 'https://555k06.com/',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
+                    }, headers),
                     onload: res => resolve(res.responseText || ''),
                     onerror: err => reject(err),
                     ontimeout: () => reject(new Error('Timeout'))
@@ -411,6 +414,98 @@
         }
     }
 
+    // 核心：深度解析低端影视 (DDYS) 专属极清「播放源 2 (1080P)」
+    async function searchDDYSLine(keywords) {
+        const host = 'https://ddys.io';
+        let moviePath = null;
+        let matchedTitle = '';
+
+        for (const kw of keywords) {
+            try {
+                const searchHtml = await requestText(`${host}/search?q=${encodeURIComponent(kw)}`);
+                const h3Regex = /<h3[^>]*>[\s\S]*?<a\s+href="(\/movie\/[^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h3>/gi;
+                let m;
+                while ((m = h3Regex.exec(searchHtml)) !== null) {
+                    const link = m[1];
+                    const title = m[2].replace(/<[^>]+>/g, '').trim();
+                    if (title === kw || title.includes(kw) || kw.includes(title)) {
+                        moviePath = link;
+                        matchedTitle = title;
+                        break;
+                    }
+                    if (!moviePath) {
+                        moviePath = link;
+                        matchedTitle = title;
+                    }
+                }
+                if (moviePath) {
+                    console.log(`${TAG} DDYS匹配影视: ${matchedTitle} (${moviePath}), 关键词: ${kw}`);
+                    break;
+                }
+            } catch (e) {}
+        }
+
+        if (!moviePath) return null;
+
+        try {
+            const detailHtml = await requestText(`${host}${moviePath}`);
+            const btnRegex = /<button[^>]*onclick="switchSource\(\d+,\s*'([^']+)',\s*'m3u8'\)"[^>]*>([\s\S]*?)<\/button>/gi;
+            let bm;
+            let source2Data = null;
+
+            while ((bm = btnRegex.exec(detailHtml)) !== null) {
+                const rawPlaylist = bm[1];
+                const btnText = bm[2].replace(/<[^>]+>/g, '').trim();
+                // 仅筛选用户指定的高质量「播放源 2 (1080P)」，忽略其他低质或卡顿源
+                if (btnText.includes('播放源 2') || btnText.includes('播放源2')) {
+                    source2Data = { rawPlaylist, btnText };
+                    break;
+                }
+            }
+
+            if (!source2Data) {
+                console.log(`${TAG} DDYS影片《${matchedTitle}》未包含「播放源 2 (1080P)」`);
+                return null;
+            }
+
+            const eps = [];
+            const items = source2Data.rawPlaylist.split('#');
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                const parts = item.split('$');
+                if (parts.length >= 2) {
+                    const epTitle = parts[0].trim();
+                    const numMatch = epTitle.match(/\d+/);
+                    const num = numMatch ? String(parseInt(numMatch[0], 10)) : String(i + 1);
+                    eps.push({
+                        title: epTitle,
+                        num: num,
+                        url: normalizeM3u8Url(parts[1])
+                    });
+                } else if (parts.length === 1 && parts[0].trim().startsWith('http')) {
+                    eps.push({
+                        title: `第${i + 1}集`,
+                        num: String(i + 1),
+                        url: normalizeM3u8Url(parts[0])
+                    });
+                }
+            }
+
+            if (eps.length === 0) return null;
+
+            return {
+                sourceId: 'ddys_source2',
+                sourceName: 'DDYS·播放源2 (1080P)',
+                is555: false,
+                vodName: matchedTitle,
+                episodes: eps
+            };
+        } catch (err) {
+            console.warn(`${TAG} DDYS多线路解析失败:`, err);
+            return null;
+        }
+    }
+
     async function searchHighDefinitionStreams(title) {
         if (!title) return [];
         const keywords = generateKeywords(title);
@@ -427,7 +522,16 @@
             }
         } catch (e) {}
 
-        // 2. 同时检索官方独立采集站直连线路作为双重容灾保障
+        // 2. 检索并接入低端影视 (DDYS) 专属「播放源 2 (1080P)」
+        try {
+            const ddysLine = await searchDDYSLine(keywords);
+            if (ddysLine) {
+                matchedSources.push(ddysLine);
+                console.log(`${TAG} 成功载入低端影视专属线路: ${ddysLine.sourceName} (${ddysLine.episodes.length} 集)`);
+            }
+        } catch (e) {}
+
+        // 3. 同时检索官方独立采集站直连线路作为双重容灾保障
         for (const kw of keywords) {
             for (const src of SOURCES) {
                 // 如果该独立源已添加，跳过
