@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.2.0
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，一键切换极清画质，免除VIP限制与画质封锁，去广告并支持多线路自由切换，切换时静音暂停原画并自动同步播放进度
+// @version      2.3.0
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，一键切换极清画质，免除VIP限制与画质封锁，彻底去除片头及暂停广告与推广挂件，支持多线路自由切换与进度无缝同步
 // @author       Niklaus88
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -27,7 +27,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.2.0) - 真1080P第三方高清聚合源引擎`);
+    console.log(`${TAG} 脚本已启动 (v2.3.0) - 真1080P第三方高清聚合源引擎 + 深度去广告`);
 
     // =========================================================================
     // 0. 线路配置 (支持多源自动容灾检索)
@@ -49,14 +49,15 @@
     let lastProgressTime = 0; // 进度记忆与无缝同步
 
     // =========================================================================
-    // 1. 数据拦截：从后端请求中捕获剧名、集数 + 清理官方广告
+    // 1. 数据拦截：从后端请求中捕获剧名、集数 + 深度剔除官方片头及暂停广告
     // =========================================================================
     function handlePlayResponse(json) {
-        if (!json || !json.data) return;
+        if (!json || !json.data) return false;
         const items = Array.isArray(json.data.info) ? json.data.info :
                       Array.isArray(json.data) ? json.data : null;
-        if (!items || !items.length) return;
+        if (!items || !items.length) return false;
 
+        let modified = false;
         items.forEach(info => {
             if (!info || typeof info !== 'object') return;
 
@@ -68,16 +69,29 @@
                 }
             }
 
-            // 去除爱壹帆官方片头广告
+            // 彻底抹除所有广告配置与流切片
+            info.needLogin = false;
+            info.isLimitStream = false;
+            info.isLimitedStream = false;
+            info.isUserFilterAd = true;  // 关键：免广告白名单
+            info.maxFrontAds = 0;        // 关键：片头广告数置 0
             if (Array.isArray(info.startData)) info.startData = [];
-            if (info.maxFrontAds) info.maxFrontAds = 0;
+            if (Array.isArray(info.pauseData)) info.pauseData = [];
+
+            // 过滤 flvPathList 中的所有广告切片 (带有 link 推广跳转或 duration>0 的推广分片)
             if (Array.isArray(info.flvPathList)) {
-                const realStreams = info.flvPathList.filter(item => !item.link);
-                if (realStreams.length > 0) info.flvPathList = realStreams;
+                const realStreams = info.flvPathList.filter(item => !item.link && (!item.duration || item.duration === 0));
+                if (realStreams.length > 0) {
+                    info.flvPathList = realStreams;
+                } else {
+                    info.flvPathList = info.flvPathList.filter(item => !item.link);
+                }
             }
+            modified = true;
         });
 
         scheduleRefresh();
+        return modified;
     }
 
     function handleDetailResponse(json) {
@@ -93,7 +107,7 @@
         }
     }
 
-    // 劫持 XHR
+    // 劫持 XHR (改写底层 responseText/response 确保前端不播放广告)
     try {
         const OrigXHR = win.XMLHttpRequest;
         const origOpen = OrigXHR.prototype.open;
@@ -110,12 +124,45 @@
             const isDetailApi = url.includes('video/detail');
 
             if (isPlayApi || isDetailApi) {
-                this.addEventListener('load', () => {
+                let patchedText = null;
+
+                const getPatchedResponse = (raw) => {
+                    if (patchedText !== null) return patchedText;
+                    if (typeof raw !== 'string' || !raw) return raw;
+
                     try {
-                        const json = JSON.parse(this.responseText);
-                        if (isPlayApi) handlePlayResponse(json);
-                        if (isDetailApi) handleDetailResponse(json);
+                        const json = JSON.parse(raw);
+                        if (isDetailApi) {
+                            handleDetailResponse(json);
+                        }
+                        if (isPlayApi) {
+                            if (handlePlayResponse(json)) {
+                                patchedText = JSON.stringify(json);
+                                return patchedText;
+                            }
+                        }
                     } catch (e) {}
+                    patchedText = raw;
+                    return patchedText;
+                };
+
+                const descText = Object.getOwnPropertyDescriptor(OrigXHR.prototype, 'responseText');
+                const descResp = Object.getOwnPropertyDescriptor(OrigXHR.prototype, 'response');
+
+                Object.defineProperty(this, 'responseText', {
+                    get() {
+                        const raw = descText ? descText.get.call(this) : this._rawResponseText;
+                        return getPatchedResponse(raw);
+                    },
+                    configurable: true
+                });
+
+                Object.defineProperty(this, 'response', {
+                    get() {
+                        const raw = descResp ? descResp.get.call(this) : this._rawResponse;
+                        return getPatchedResponse(raw);
+                    },
+                    configurable: true
                 });
             }
             return origSend.apply(this, args);
@@ -129,12 +176,21 @@
             win.fetch = async function (...args) {
                 const res = await origFetch.apply(this, args);
                 const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url) || '';
-                if (url.includes('video/play') || url.includes('video-media') || url.includes('video/detail')) {
+                const isPlayApi = url.includes('video/play') || url.includes('video-media');
+                const isDetailApi = url.includes('video/detail');
+
+                if (isPlayApi || isDetailApi) {
                     try {
                         const clone = res.clone();
                         const json = await clone.json();
-                        if (url.includes('video/detail')) handleDetailResponse(json);
-                        else handlePlayResponse(json);
+                        if (isDetailApi) handleDetailResponse(json);
+                        if (isPlayApi && handlePlayResponse(json)) {
+                            return new Response(JSON.stringify(json), {
+                                status: res.status,
+                                statusText: res.statusText,
+                                headers: res.headers
+                            });
+                        }
                     } catch (e) {}
                 }
                 return res;
@@ -720,7 +776,31 @@
         }
         detectVideoInfoFromDOM();
         injectUI();
-    }, 400);
+
+        // DOM 深度去广告巡检看门狗 (清除“暂时无法显示广告”、右角推广等残留)
+        try {
+            const adKeywords = ['暂时无法显示广告', '了解详情', '下载该视频', '跳过广告', '广告剩余'];
+            const allElements = document.querySelectorAll('div, span, p, a, button');
+            allElements.forEach(el => {
+                if (el.closest('#yfsp-hd-toolbar') || el.closest('#yfsp-hd-overlay')) return;
+                const txt = el.textContent ? el.textContent.trim() : '';
+
+                if (txt === '广告' || adKeywords.some(kw => txt.includes(kw))) {
+                    const adContainer = el.closest('[class*="ad"], [class*="mask"], [class*="tip"], [class*="wrap"], [class*="box"]') || el.parentElement;
+                    if (adContainer && !adContainer.contains(document.querySelector('video'))) {
+                        adContainer.style.setProperty('display', 'none', 'important');
+                        adContainer.style.setProperty('visibility', 'hidden', 'important');
+                    }
+                }
+            });
+        } catch (e) {}
+
+        // 原生播放器卡顿自动促醒：如果原生 video 处于 paused 且被片头广告阻断，促醒播放正片
+        const nativeVideo = document.querySelector('video:not(.artplayer-video):not(.yfsp-custom-video)');
+        if (nativeVideo && !isHdActive && nativeVideo.paused && nativeVideo.currentTime === 0 && nativeVideo.readyState >= 2) {
+            nativeVideo.play().catch(() => {});
+        }
+    }, 350);
 
     // =========================================================================
     // 7. 样式注入
@@ -730,6 +810,22 @@
         const style = document.createElement('style');
         style.id = 'yfsp-hd-style';
         style.textContent = `
+            /* 深度隐藏所有爱壹帆官方广告、片头倒计时、弹窗、暂停广告与右角浮动推广 */
+            .player-ad, .video-ad, .pause-ad, .ad-box, .app-ad,
+            .video-pause-ad, .video-front-ad, .ad-mark, .ad-tips,
+            [class*="ad-container"], [class*="advert"], [id*="advert"],
+            .ad-banner, .ad-title, [class*="download-tip"],
+            .player-ads-wrap, .public-ad, .ads-layer, .ad-item,
+            div[class*="pause-banner"], div[class*="front-ad"],
+            .aa-ad-wrap, .video-ads, app-ad {
+                display: none !important;
+                opacity: 0 !important;
+                pointer-events: none !important;
+                visibility: hidden !important;
+                width: 0 !important;
+                height: 0 !important;
+            }
+
             /* 悬浮换源胶囊按钮 (固定停靠在播放器右上角) */
             .yfsp-hd-toolbar {
                 position: absolute;
