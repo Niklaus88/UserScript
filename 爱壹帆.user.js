@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.6.0
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，一键切换极清画质，免除VIP限制，精细去广告并保护UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.6.1
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P高清蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，一键切换极清画质，免除VIP限制，深度净网去广告（无痕模式原生免广告）并保护UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -37,7 +37,13 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.6.0) - 引入 555 电影与低端影视极速蓝光与新浪纯净线路集群`);
+    console.log(`${TAG} 脚本已启动 (v2.6.1) - 深度净网去广告与多线路极清集群就绪`);
+
+    // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
+    try {
+        localStorage.removeItem('ggs_20xx');
+        localStorage.removeItem('ggs');
+    } catch (e) {}
 
     // =========================================================================
     // 0. 线路配置 (支持多源自动容灾检索)
@@ -132,8 +138,20 @@
             const url = this._reqUrl || '';
             const isPlayApi = url.includes('video/play') || url.includes('video-media');
             const isDetailApi = url.includes('video/detail');
+            const isGgApi = url.includes('/play/o') || url.includes('play/o') || url.includes('get-gg-block-content');
 
-            if (isPlayApi || isDetailApi) {
+            if (isGgApi) {
+                // 彻底拦截右侧边栏与页面全局推广广告接口，直接响应空广告列表
+                const emptyGg = JSON.stringify({ systime: `/Date(${Date.now()})/`, data: [], country: "US", regionId: 4 });
+                Object.defineProperty(this, 'responseText', {
+                    get() { return emptyGg; },
+                    configurable: true
+                });
+                Object.defineProperty(this, 'response', {
+                    get() { return emptyGg; },
+                    configurable: true
+                });
+            } else if (isPlayApi || isDetailApi) {
                 let patchedText = null;
 
                 const getPatchedResponse = (raw) => {
@@ -184,10 +202,21 @@
         const origFetch = win.fetch;
         if (typeof origFetch === 'function') {
             win.fetch = async function (...args) {
-                const res = await origFetch.apply(this, args);
                 const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url) || '';
                 const isPlayApi = url.includes('video/play') || url.includes('video-media');
                 const isDetailApi = url.includes('video/detail');
+                const isGgApi = url.includes('/play/o') || url.includes('play/o') || url.includes('get-gg-block-content');
+
+                if (isGgApi) {
+                    const emptyGg = JSON.stringify({ systime: `/Date(${Date.now()})/`, data: [], country: "US", regionId: 4 });
+                    return new Response(emptyGg, {
+                        status: 200,
+                        statusText: 'OK',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                }
+
+                const res = await origFetch.apply(this, args);
 
                 if (isPlayApi || isDetailApi) {
                     try {
@@ -1150,7 +1179,7 @@
         // 辅助检测：绝对保护右侧 UP 主卡片与关注按钮，严禁误伤
         function isAuthorOrEssential(el) {
             if (!el) return false;
-            if (el.closest('.uploader, .author-block, .name-card, .user-block, .user-center, app-user-meta, app-user-card, [class*="uploader"], [class*="user-status"]')) {
+            if (el.closest('video-publisher, .video-publisher, .uploader, .author-block, .name-card, .user-block, .user-center, app-user-meta, app-user-card, [class*="uploader"], [class*="user-status"]')) {
                 return true;
             }
             const text = el.textContent || '';
@@ -1159,6 +1188,30 @@
             }
             return false;
         }
+
+        // 深度巡检清理右侧边栏与全站广告横幅 (PRU/PRD/PB/dabf 等)，彻底收起广告占位
+        try {
+            const adSelectors = `
+                [dabf],
+                [code="PRU"], [code="PRD"], [code="PB"],
+                [code="VPRU"], [code="VPRD"],
+                .pru-transition-style, .prd-transition-style, .prd-top-change,
+                .gg-tips-text, .auth-label,
+                img[alt="广告"]
+            `;
+            const adNodes = document.querySelectorAll(adSelectors);
+            adNodes.forEach(el => {
+                if (isAuthorOrEssential(el)) return;
+                let host = el;
+                if (el.parentElement && !isAuthorOrEssential(el.parentElement) && !el.parentElement.matches('body, html, main, .container, app-root')) {
+                    host = el.parentElement;
+                }
+                host.style.setProperty('display', 'none', 'important');
+                host.style.setProperty('height', '0px', 'important');
+                host.style.setProperty('min-height', '0px', 'important');
+                host.style.setProperty('overflow', 'hidden', 'important');
+            });
+        } catch (e) {}
 
         // DOM 深度去广告巡检看门狗 (精确清理片头倒计时与卡屏层，绝不触碰右侧关注栏)
         try {
@@ -1203,7 +1256,18 @@
         const style = document.createElement('style');
         style.id = 'yfsp-hd-style';
         style.textContent = `
-            /* 严格限定在视频播放窗口内部隐藏广告组件，绝不误杀右侧 UP 主关注卡片 */
+            /* 1. 深度隐藏右侧边栏及页面全局广告横幅组件 (PRU/PRD/PB/SS/dabf 等) */
+            [dabf],
+            [code="PRU"], [code="PRD"], [code="PB"],
+            [code="VPRU"], [code="VPRD"], [code="VPB"],
+            [code="SS"], [code="DL"], [code="H4"],
+            .pru-transition-style,
+            .prd-transition-style,
+            .prd-top-change,
+            .gg-tips-text,
+            .auth-label,
+            img[alt="广告"],
+            /* 视频播放窗口内部广告组件 */
             .video-player .player-ad,
             .video-player .video-ad,
             .video-player .pause-ad,
@@ -1224,13 +1288,26 @@
                 visibility: hidden !important;
                 width: 0 !important;
                 height: 0 !important;
+                min-height: 0 !important;
+                max-height: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
             }
 
-            /* 显式保障右侧 UP 主加关注卡片始终正常显示与对齐 */
-            .uploader, .author-block, .name-card, .user-block, app-user-meta {
+            /* 2. 绝对保障右侧 UP 主关注卡片始终正常显示与完美对齐 */
+            video-publisher,
+            .video-publisher,
+            .uploader,
+            .author-block,
+            .name-card,
+            .user-block,
+            app-user-meta {
                 display: flex !important;
                 visibility: visible !important;
                 opacity: 1 !important;
+                width: auto !important;
+                height: auto !important;
             }
 
             /* 悬浮换源胶囊按钮 (固定停靠在播放器右上角) */
