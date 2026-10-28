@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.7.5
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（极简单行浮岛、流体纯白发光进度条、垂直音量调节胶囊、设置内置倍速与画中画模式），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.7.6
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（极简单行浮岛、流体纯白发光进度条、垂直音量调节胶囊、设置内置倍速及自动跳过片头片尾、全屏底层交互自愈唤醒），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -38,7 +38,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.7.5) - iOS 纯白超透液体玻璃播放系统就绪`);
+    console.log(`${TAG} 脚本已启动 (v2.7.6) - 纯白液体玻璃交互完善与跳过片头片尾就绪`);
 
     // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
     try {
@@ -1401,6 +1401,37 @@
                                 artInstance.playbackRate = item.value;
                                 return item.html;
                             }
+                        },
+                        {
+                            width: 220,
+                            html: '跳过片头',
+                            tooltip: GM_getValue('yfsp_skip_opening', 0) ? `${GM_getValue('yfsp_skip_opening', 0)}秒` : '关闭',
+                            selector: [
+                                { default: !GM_getValue('yfsp_skip_opening', 0), html: '关闭', value: 0 },
+                                { default: GM_getValue('yfsp_skip_opening', 0) === 60, html: '跳过 60 秒', value: 60 },
+                                { default: GM_getValue('yfsp_skip_opening', 0) === 90, html: '跳过 90 秒', value: 90 },
+                                { default: GM_getValue('yfsp_skip_opening', 0) === 100, html: '跳过 100 秒', value: 100 },
+                                { default: GM_getValue('yfsp_skip_opening', 0) === 120, html: '跳过 120 秒', value: 120 }
+                            ],
+                            onSelect: function (item) {
+                                GM_setValue('yfsp_skip_opening', item.value);
+                                return item.value ? `${item.value}秒` : '关闭';
+                            }
+                        },
+                        {
+                            width: 220,
+                            html: '跳过片尾',
+                            tooltip: GM_getValue('yfsp_skip_ending', 0) ? `${GM_getValue('yfsp_skip_ending', 0)}秒` : '关闭',
+                            selector: [
+                                { default: !GM_getValue('yfsp_skip_ending', 0), html: '关闭', value: 0 },
+                                { default: GM_getValue('yfsp_skip_ending', 0) === 60, html: '跳过 60 秒', value: 60 },
+                                { default: GM_getValue('yfsp_skip_ending', 0) === 90, html: '跳过 90 秒', value: 90 },
+                                { default: GM_getValue('yfsp_skip_ending', 0) === 120, html: '跳过 120 秒', value: 120 }
+                            ],
+                            onSelect: function (item) {
+                                GM_setValue('yfsp_skip_ending', item.value);
+                                return item.value ? `${item.value}秒` : '关闭';
+                            }
                         }
                     ],
                     hotkey: true,
@@ -1423,6 +1454,66 @@
                     }
                     muteAndPauseAllNativeVideos();
                 });
+
+                // 自动化跳过片头与片尾
+                let hasSkippedOpening = false;
+                let hasSkippedEnding = false;
+                artInstance.on('video:timeupdate', () => {
+                    const skipOpening = parseInt(GM_getValue('yfsp_skip_opening', 0), 10) || 0;
+                    if (skipOpening > 0 && !hasSkippedOpening && artInstance.currentTime < skipOpening && artInstance.currentTime > 0) {
+                        hasSkippedOpening = true;
+                        artInstance.currentTime = skipOpening;
+                        artInstance.notice.show = `已为您自动跳过片头 ${skipOpening} 秒`;
+                    }
+
+                    const skipEnding = parseInt(GM_getValue('yfsp_skip_ending', 0), 10) || 0;
+                    if (skipEnding > 0 && !hasSkippedEnding && artInstance.duration > 0 && (artInstance.duration - artInstance.currentTime) <= skipEnding) {
+                        hasSkippedEnding = true;
+                        artInstance.notice.show = `已到达片尾，自动准备下一集`;
+                        const nextBtn = document.querySelector('.art-icon-next, .video-player-next, .btn-next');
+                        if (nextBtn) {
+                            nextBtn.click();
+                        } else {
+                            artInstance.currentTime = artInstance.duration - 0.5;
+                        }
+                    }
+                });
+
+                // 彻底解决全屏模式下鼠标移动到底部控制栏不唤醒的交互问题
+                let autoHideTimer = null;
+                const activateControls = (e) => {
+                    if (!artInstance) return;
+                    artInstance.controls.show = true;
+                    if (artInstance.template && artInstance.template.$player) {
+                        artInstance.template.$player.classList.add('art-control-show');
+                        artInstance.template.$player.classList.remove('art-hide-cursor');
+                    }
+                    if (autoHideTimer) clearTimeout(autoHideTimer);
+
+                    // 检查鼠标是否在底部 120px 范围内
+                    const playerEl = (artInstance.template && artInstance.template.$player) || container;
+                    const rect = playerEl.getBoundingClientRect();
+                    const isNearBottom = e && e.clientY ? e.clientY >= (rect.bottom - 120) : false;
+
+                    // 鼠标在底部悬浮栏附近时，保持常亮；离开后 3.5 秒平滑隐退
+                    if (!isNearBottom && artInstance.playing && !artInstance.setting.show) {
+                        autoHideTimer = setTimeout(() => {
+                            if (artInstance && artInstance.playing && !artInstance.setting.show) {
+                                artInstance.controls.show = false;
+                                if (artInstance.template && artInstance.template.$player) {
+                                    artInstance.template.$player.classList.remove('art-control-show');
+                                }
+                            }
+                        }, 3500);
+                    }
+                };
+
+                container.addEventListener('mousemove', activateControls, { passive: true });
+                document.addEventListener('mousemove', (e) => {
+                    if (artInstance && (artInstance.fullscreen || document.fullscreenElement)) {
+                        activateControls(e);
+                    }
+                }, { passive: true });
                 return;
             } catch (err) {
                 console.warn(`${TAG} Artplayer 初始化异常，降级为原生 Hls 播放:`, err);
@@ -1899,8 +1990,10 @@
                 transform: translateY(10px);
             }
             .art-video-player.art-control-show .art-bottom,
-            .art-video-player.art-hover .art-bottom {
+            .art-video-player.art-hover .art-bottom,
+            .art-video-player .art-bottom:hover {
                 opacity: 1 !important;
+                pointer-events: auto !important;
                 transform: translateY(0) !important;
             }
             .art-video-player .art-bottom .art-controls {
@@ -1995,64 +2088,107 @@
             .art-video-player .art-control-fullscreen {
                 order: 3 !important;
             }
-            /* 5. 悬停呼出垂直长条音量胶囊 */
+            /* 5. 悬停呼出垂直长条音量胶囊 (完善 Artplayer volume-panel 容器结构) */
             .art-video-player .art-control-volume {
                 position: relative !important;
             }
-            .art-video-player .art-volume-slider {
+            .art-video-player .art-volume-panel {
                 position: absolute !important;
-                bottom: calc(100% + 12px) !important;
+                bottom: 50px !important;
                 left: 50% !important;
                 transform: translateX(-50%) translateY(8px) scale(0.95) !important;
-                width: 38px !important;
-                height: 120px !important;
-                border-radius: 20px !important;
-                display: flex !important;
-                flex-direction: column !important;
-                align-items: center !important;
-                justify-content: center !important;
-                padding: 14px 0 !important;
-                background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(25, 30, 45, 0.38) 45%, rgba(12, 15, 22, 0.65) 100%) !important;
-                backdrop-filter: blur(24px) saturate(200%) !important;
-                -webkit-backdrop-filter: blur(24px) saturate(200%) !important;
-                border: 1px solid rgba(255, 255, 255, 0.20) !important;
-                box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), inset 0 1px 1.5px rgba(255, 255, 255, 0.35) !important;
+                width: 42px !important;
+                height: 140px !important;
+                padding: 0 !important;
                 opacity: 0;
                 pointer-events: none;
-                transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
-                z-index: 50 !important;
+                transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+                z-index: 100 !important;
             }
-            .art-video-player .art-control-volume:hover .art-volume-slider,
-            .art-video-player .art-volume-slider:hover {
+            .art-video-player .art-control-volume:hover .art-volume-panel,
+            .art-video-player .art-volume-panel:hover {
                 opacity: 1 !important;
                 pointer-events: auto !important;
                 transform: translateX(-50%) translateY(0) scale(1) !important;
             }
-            .art-video-player .art-volume-slider-inner {
-                width: 5px !important;
+            .art-video-player .art-volume-panel .art-volume-inner {
+                width: 100% !important;
                 height: 100% !important;
-                background: rgba(255, 255, 255, 0.22) !important;
+                border-radius: 20px !important;
+                background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(25, 30, 45, 0.45) 45%, rgba(12, 15, 22, 0.85) 100%) !important;
+                backdrop-filter: blur(28px) saturate(210%) !important;
+                -webkit-backdrop-filter: blur(28px) saturate(210%) !important;
+                border: 1px solid rgba(255, 255, 255, 0.20) !important;
+                box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), inset 0 1px 1.5px rgba(255, 255, 255, 0.35) !important;
+                padding: 14px 0 12px !important;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                gap: 8px !important;
+            }
+            .art-video-player .art-volume-panel .art-volume-slider {
+                width: 100% !important;
+                flex: 1 !important;
+                display: flex !important;
+                justify-content: center !important;
+                align-items: center !important;
+                position: relative !important;
+                cursor: pointer !important;
+            }
+            .art-video-player .art-volume-panel .art-volume-handle {
+                width: 4px !important;
+                height: 100% !important;
+                background: rgba(255, 255, 255, 0.25) !important;
                 border-radius: 999px !important;
+                position: relative !important;
+                overflow: hidden !important;
             }
-            .art-video-player .art-volume-slider-handle {
-                width: 13px !important;
-                height: 13px !important;
+            .art-video-player .art-volume-panel .art-volume-loaded {
                 background: #ffffff !important;
-                box-shadow: 0 0 8px rgba(255, 255, 255, 0.9), 0 1px 3px rgba(0,0,0,0.5) !important;
-                border-radius: 50% !important;
+                border-radius: 999px !important;
+                box-shadow: 0 0 8px rgba(255, 255, 255, 0.8) !important;
             }
-            /* 6. 设置高透毛玻璃抽屉面板 (含二级倍速) */
-            .art-video-player .art-settings,
-            .art-video-player .art-setting-panel {
-                background: rgba(18, 22, 32, 0.88) !important;
+            .art-video-player .art-volume-panel .art-volume-indicator {
+                width: 12px !important;
+                height: 12px !important;
+                background: #ffffff !important;
+                border-radius: 50% !important;
+                box-shadow: 0 0 10px rgba(255, 255, 255, 0.95), 0 1px 3px rgba(0,0,0,0.5) !important;
+                position: absolute !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+            }
+            .art-video-player .art-volume-panel .art-volume-value {
+                color: rgba(255, 255, 255, 0.9) !important;
+                font-size: 11px !important;
+                font-family: ui-monospace, SFMono-Regular, monospace !important;
+            }
+            /* 6. 设置高透毛玻璃抽屉面板 (正确定位于右下角齿轮上方) */
+            .art-video-player .art-settings {
+                position: absolute !important;
+                top: auto !important;
+                bottom: 72px !important;
+                right: 20px !important;
+                left: auto !important;
+                width: 230px !important;
+                max-height: 380px !important;
+                border-radius: 20px !important;
+                background: rgba(18, 22, 32, 0.90) !important;
                 backdrop-filter: blur(28px) saturate(210%) !important;
                 -webkit-backdrop-filter: blur(28px) saturate(210%) !important;
                 border: 1px solid rgba(255, 255, 255, 0.18) !important;
-                border-radius: 20px !important;
                 box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), inset 0 1px 1.5px rgba(255, 255, 255, 0.25) !important;
-                bottom: calc(100% + 14px) !important;
                 padding: 6px !important;
-                overflow: hidden !important;
+                overflow-x: hidden !important;
+                overflow-y: auto !important;
+                z-index: 95 !important;
+            }
+            .art-video-player .art-settings .art-setting-panel {
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
             }
             .art-video-player .art-setting-item {
                 border-radius: 12px !important;
