@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.9.1
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（精准隔离控制按钮样式彻底修复时间戳与进度条重叠挤压Bug、精修控制按钮悬停微圆环光效消除过大长方形高晕、柔和收敛进度条选中微动动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.9.2
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（精准修复设置抽屉菜单右侧箭头图标变形切角与左侧矢量图标实心填充Bug、精准隔离控制按钮样式彻底修复时间戳与进度条重叠挤压Bug、精修控制按钮悬停微圆环光效消除过大长方形高晕、柔和收敛进度条选中微动动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -38,7 +38,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.8.4) - 剧集精准定位自愈、单片与多集双模适配就绪`);
+    console.log(`${TAG} 脚本已启动 (v2.9.2) - 剧集精准定位自愈、单片与多集双模适配就绪`);
 
     // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
     try {
@@ -1889,10 +1889,21 @@
                     wakeControls();
                 });
 
-                // 设置菜单联动：展开菜单时保持常显，收起后恢复沉退逻辑
+                // 设置菜单联动：展开菜单时保持常显，收起后恢复沉退逻辑；并主动为原生未设 viewBox 的箭头补齐属性防止矢量切角
+                const fixSettingSvgs = () => {
+                    try {
+                        const svgs = container.querySelectorAll('.art-settings .art-setting-item-right-icon svg, .art-settings .art-setting-item-back svg');
+                        svgs.forEach(svg => {
+                            if (!svg.getAttribute('viewBox')) {
+                                svg.setAttribute('viewBox', '0 0 32 32');
+                            }
+                        });
+                    } catch (e) {}
+                };
                 artInstance.on('setting', (show) => {
                     if (show) {
                         wakeControls();
+                        setTimeout(fixSettingSvgs, 20);
                     } else {
                         scheduleRetreat(600);
                     }
@@ -2724,7 +2735,7 @@
                 bottom: 72px !important;
                 right: 20px !important;
                 left: auto !important;
-                width: 230px !important;
+                width: 236px !important;
                 max-height: 380px !important;
                 border-radius: 20px !important;
                 background: rgba(18, 22, 32, 0.90) !important;
@@ -2749,22 +2760,104 @@
                 transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
                 padding: 8px 12px !important;
                 color: rgba(255, 255, 255, 0.9) !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                box-sizing: border-box !important;
             }
             .art-video-player .art-setting-item:hover {
                 background: rgba(255, 255, 255, 0.14) !important;
             }
-            .art-video-player .art-setting-item .art-icon {
+            /* 左侧功能项专属矢量线框图标（排除返回上一级按钮中的原生箭头） */
+            .art-video-player .art-settings .art-setting-item:not(.art-setting-item-back) .art-setting-item-left {
+                display: flex !important;
+                align-items: center !important;
+                gap: 8px !important;
+                flex: 1 !important;
+                min-width: 0 !important;
+            }
+            .art-video-player .art-settings .art-setting-item:not(.art-setting-item-back) .art-setting-item-left-icon {
+                width: 20px !important;
+                height: 20px !important;
                 display: inline-flex !important;
                 align-items: center !important;
                 justify-content: center !important;
-                margin-right: 8px !important;
+                margin-right: 4px !important;
+                flex-shrink: 0 !important;
+            }
+            .art-video-player .art-settings .art-setting-item:not(.art-setting-item-back) .art-setting-item-left-icon svg {
+                width: 18px !important;
+                height: 18px !important;
+                display: block !important;
+                fill: none !important;
+                stroke: #ffffff !important;
+                stroke-width: 2 !important;
+                stroke-linecap: round !important;
+                stroke-linejoin: round !important;
                 opacity: 0.9 !important;
             }
-            .art-video-player .art-setting-item .art-icon svg {
-                width: 17px !important;
-                height: 17px !important;
+            .art-video-player .art-settings .art-setting-item:not(.art-setting-item-back) .art-setting-item-left-icon svg * {
+                fill: none !important;
+                stroke: #ffffff !important;
+            }
+            .art-video-player .art-settings .art-setting-item-left-text {
+                font-size: 13px !important;
+                font-weight: 500 !important;
+                color: rgba(255, 255, 255, 0.92) !important;
+                white-space: nowrap !important;
+            }
+            /* 右侧指示区与箭头：防止被切角、去除错误描边、保持自然平滑显示 */
+            .art-video-player .art-settings .art-setting-item-right {
+                display: flex !important;
+                align-items: center !important;
+                gap: 4px !important;
+                margin-left: auto !important;
+                flex-shrink: 0 !important;
+            }
+            .art-video-player .art-settings .art-setting-item-right-tooltip {
+                font-size: 12px !important;
+                color: rgba(255, 255, 255, 0.62) !important;
+                margin-right: 2px !important;
+            }
+            .art-video-player .art-settings .art-setting-item-right-icon {
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                width: 20px !important;
+                min-width: 20px !important;
+                height: 20px !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: visible !important;
+            }
+            .art-video-player .art-settings .art-setting-item-right-icon .art-icon {
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                width: 100% !important;
+                height: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                opacity: 0.65 !important;
+                transition: opacity 0.2s ease !important;
+            }
+            .art-video-player .art-setting-item:hover .art-setting-item-right-icon .art-icon {
+                opacity: 0.95 !important;
+            }
+            .art-video-player .art-settings .art-setting-item-right-icon svg,
+            .art-video-player .art-settings .art-setting-item-back .art-setting-item-left-icon svg {
+                width: 20px !important;
+                height: 20px !important;
                 display: block !important;
-                stroke: currentColor !important;
+                fill: #ffffff !important;
+                stroke: none !important;
+                overflow: visible !important;
+            }
+            /* 返回上一级按钮分隔线与微调 */
+            .art-video-player .art-settings .art-setting-item-back {
+                border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+                margin-bottom: 4px !important;
+                padding-bottom: 8px !important;
             }
             /* 7. 控制按钮微交互反馈（仅作用于可点击的图标按钮，坚决排除时间戳与进度条容器） */
             .art-video-player .art-bottom .art-control:not(.art-control-progress):not(.art-control-time) {
