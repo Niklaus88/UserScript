@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.7.3
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，一键切换极清画质，免除VIP限制，深度净网去广告，精准多级季数泛化与卡片标题归一化打分匹配（彻底解决555因分词检索命中错误剧集漏掉蓝光线路），全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.7.4
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，一键切换极清画质，免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统（彻底杜绝第2季误播第1季），全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -38,7 +38,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.7.3) - 季数归一化与555卡片精准打分匹配就绪`);
+    console.log(`${TAG} 脚本已启动 (v2.7.4) - 防串季跨源打分匹配与全线路极清蓝光就绪`);
 
     // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
     try {
@@ -292,15 +292,49 @@
         };
     }
 
-    // 核心季数与影视名称归一化（将 "第2季" <=> "第二季" <=> "2" 标准化，支撑精准跨源打分匹配）
+    // 核心季数与影视名称归一化（将 "第2季" <=> "第二季" <=> "2" <=> "Ⅱ" 标准化，支撑精准跨源打分匹配）
     function normalizeTitleForMatch(str) {
         if (!str) return '';
-        const chineseNumMap = { '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6', '七': '7', '八': '8', '九': '9', '十': '10' };
+        const chineseNumMap = { 
+            '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6', '七': '7', '八': '8', '九': '9', '十': '10',
+            'Ⅰ': '1', 'Ⅱ': '2', 'Ⅲ': '3', 'Ⅳ': '4', 'Ⅴ': '5', 'Ⅵ': '6', 'Ⅶ': '7', 'Ⅷ': '8', 'Ⅸ': '9', 'Ⅹ': '10'
+        };
         return str
             .replace(/第\s*([一二三四五六七八九十\d]+)\s*[季部]/g, (_, num) => chineseNumMap[num] || num)
             .replace(/([一二三四五六七八九十])季/g, (_, num) => chineseNumMap[num] || num)
+            .replace(/[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]/g, ch => chineseNumMap[ch] || ch)
             .replace(/[:：·\-_—\s]+/g, '')
             .toLowerCase();
+    }
+
+    // 智能影视标题与季数防串打分算法（彻底杜绝第2季误选第1季）
+    function calculateMatchScore(candidateTitle, targetTitle, kw) {
+        if (!candidateTitle || !targetTitle) return 0;
+        const normTarget = normalizeTitleForMatch(targetTitle);
+        const normCandidate = normalizeTitleForMatch(candidateTitle);
+
+        const targetSeasonMatch = targetTitle.match(/第\s*([一二三四五六七八九十\d]+)\s*[季部]|([一二三四五六七八九十\d]+)[季部]|[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]|(?:\s+)(\d+)$/);
+        const candidateSeasonMatch = candidateTitle.match(/第\s*([一二三四五六七八九十\d]+)\s*[季部]|([一二三四五六七八九十\d]+)[季部]|[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]|(?:\s+)(\d+)$/);
+
+        // 完全同构匹配（如 斩神之凡尘神域第2季 与 斩神之凡尘神域2 或 斩神之凡尘神域Ⅱ）
+        if (normCandidate === normTarget) return 100;
+
+        // 如果用户目标明确指定了季数（如第二季/第2季），候选片名却缺少季数标识，属于跨季/第一季错配，严重降权
+        if (targetSeasonMatch && !candidateSeasonMatch) {
+            return 20;
+        }
+
+        // 如果两者均有季数但季数不相同（如第一季与第二季），绝对严禁匹配
+        if (targetSeasonMatch && candidateSeasonMatch) {
+            const normT = normTarget.slice(-1);
+            const normC = normCandidate.slice(-1);
+            if (normT !== normC) return 0;
+        }
+
+        if (normCandidate.startsWith(normTarget) || normTarget.startsWith(normCandidate)) return 80;
+        if (normCandidate.includes(normTarget) || normTarget.includes(normCandidate)) return 60;
+        if (candidateTitle === kw || candidateTitle.includes(kw) || kw.includes(candidateTitle)) return 50;
+        return 10;
     }
 
     function generateKeywords(raw) {
@@ -522,46 +556,35 @@
 
     function parse555SearchCards(searchHtml) {
         const list = [];
-        const reCard = /href="\/voddetail\/(\d+)\.html"[^>]*title="([^"]+)"/g;
-        let m;
-        while ((m = reCard.exec(searchHtml)) !== null) {
-            if (!list.some(item => item.id === m[1])) {
-                list.push({ id: m[1], title: m[2].replace(/<[^>]+>/g, '').trim() });
-            }
-        }
-        const reAlt = /href="\/voddetail\/(\d+)\.html"[\s\S]*?alt="([^"]+)"/g;
-        while ((m = reAlt.exec(searchHtml)) !== null) {
-            if (!list.some(item => item.id === m[1])) {
-                list.push({ id: m[1], title: m[2].replace(/<[^>]+>/g, '').trim() });
+        // 严格以 module-card-item 卡片为作用域切片，杜绝跨卡片正则串位错误匹配
+        const chunks = searchHtml.split('class="module-card-item');
+        for (let i = 1; i < chunks.length; i++) {
+            const chunk = chunks[i];
+            const idMatch = chunk.match(/href="\/voddetail\/(\d+)\.html"/);
+            if (!idMatch) continue;
+            const id = idMatch[1];
+            const titleMatch = chunk.match(/<strong>([\s\S]*?)<\/strong>/) || chunk.match(/alt="([^"]+)"/) || chunk.match(/title="([^"]+)"/);
+            const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : '';
+            if (id && title && !list.some(item => item.id === id)) {
+                list.push({ id, title });
             }
         }
         return list;
     }
 
-    // 核心：深度解析 555 电影的全部多线路与切片列表 (支持精准卡片打分与季数归一化匹配)
+    // 核心：深度解析 555 电影的全部多线路与切片列表 (支持精准卡片打分与防串季匹配)
     async function search555Lines(keywords, targetTitle) {
         const host = 'https://555k06.com';
         let bestVodId = null;
         let bestScore = 0;
         let matchedName = '';
-        const normTarget = normalizeTitleForMatch(targetTitle || keywords[0] || '');
 
         for (const kw of keywords) {
             try {
                 const searchHtml = await requestText(`${host}/vodsearch/-------------.html?wd=${encodeURIComponent(kw)}`);
                 const cards = parse555SearchCards(searchHtml);
                 for (const card of cards) {
-                    const normCard = normalizeTitleForMatch(card.title);
-                    let score = 0;
-                    if (normCard === normTarget) {
-                        score = 100;
-                    } else if (normCard.startsWith(normTarget) || normTarget.startsWith(normCard)) {
-                        score = 80;
-                    } else if (normCard.includes(normTarget) || normTarget.includes(normCard)) {
-                        score = 60;
-                    } else if (card.title === kw || card.title.includes(kw) || kw.includes(card.title)) {
-                        score = 50;
-                    }
+                    const score = calculateMatchScore(card.title, targetTitle || kw, kw);
                     if (score > bestScore) {
                         bestScore = score;
                         bestVodId = card.id;
@@ -626,10 +649,11 @@
     }
 
     // 核心：深度解析低端影视 (DDYS) 专属极清「播放源 2 (1080P)」
-    async function searchDDYSLine(keywords) {
+    async function searchDDYSLine(keywords, targetTitle) {
         const host = 'https://ddys.io';
         let moviePath = null;
         let matchedTitle = '';
+        let bestScore = 0;
 
         for (const kw of keywords) {
             try {
@@ -639,24 +663,20 @@
                 while ((m = h3Regex.exec(searchHtml)) !== null) {
                     const link = m[1];
                     const title = m[2].replace(/<[^>]+>/g, '').trim();
-                    if (title === kw || title.includes(kw) || kw.includes(title)) {
+                    const score = calculateMatchScore(title, targetTitle || kw, kw);
+                    if (score > bestScore) {
+                        bestScore = score;
                         moviePath = link;
                         matchedTitle = title;
-                        break;
-                    }
-                    if (!moviePath) {
-                        moviePath = link;
-                        matchedTitle = title;
+                        if (bestScore === 100) break;
                     }
                 }
-                if (moviePath) {
-                    console.log(`${TAG} DDYS匹配影视: ${matchedTitle} (${moviePath}), 关键词: ${kw}`);
-                    break;
-                }
+                if (bestScore === 100) break;
             } catch (e) {}
         }
 
-        if (!moviePath) return null;
+        if (!moviePath || bestScore < 50) return null;
+        console.log(`${TAG} DDYS精准打分匹配影视: ${matchedTitle} (${moviePath}), 得分=${bestScore}`);
 
         try {
             const detailHtml = await requestText(`${host}${moviePath}`);
@@ -718,27 +738,36 @@
     }
 
     // 核心：深度解析低端影视 DDrk 架构 (ddys.one) 专属极清「X节点 (新浪1080P)」
-    async function searchDDYSOneLine(keywords) {
+    async function searchDDYSOneLine(keywords, targetTitle) {
         const host = 'https://ddys.one';
         let vodPath = null;
         let vodTitle = '';
+        let bestScore = 0;
 
         for (const kw of keywords) {
             try {
                 const searchHtml = await requestText(`${host}/?s=${encodeURIComponent(kw)}&post_type=post`, {
                     'Referer': 'https://ddys.one/'
                 });
-                const m = searchHtml.match(/<a\s+href="(\/vod\/\d+\/)"\s+rel="bookmark">([^<]+)<\/a>/i);
-                if (m) {
-                    vodPath = m[1];
-                    vodTitle = m[2].trim();
-                    console.log(`${TAG} DDYS.one匹配影片: ${vodTitle} (${vodPath}), 关键词: ${kw}`);
-                    break;
+                const aRegex = /<a\s+href="(\/vod\/\d+\/)"\s+rel="bookmark">([\s\S]*?)<\/a>/gi;
+                let m;
+                while ((m = aRegex.exec(searchHtml)) !== null) {
+                    const link = m[1];
+                    const title = m[2].replace(/<[^>]+>/g, '').trim();
+                    const score = calculateMatchScore(title, targetTitle || kw, kw);
+                    if (score > bestScore) {
+                        bestScore = score;
+                        vodPath = link;
+                        vodTitle = title;
+                        if (bestScore === 100) break;
+                    }
                 }
+                if (bestScore === 100) break;
             } catch (e) {}
         }
 
-        if (!vodPath) return null;
+        if (!vodPath || bestScore < 50) return null;
+        console.log(`${TAG} DDYS.one精准打分匹配影视: ${vodTitle} (${vodPath}), 得分=${bestScore}`);
 
         try {
             const vodIdMatch = vodPath.match(/\d+/);
@@ -808,7 +837,7 @@
 
         // 2. 检索并接入低端影视 (DDYS.io) 专属「播放源 2 (1080P)」
         try {
-            const ddysLine = await searchDDYSLine(keywords);
+            const ddysLine = await searchDDYSLine(keywords, title);
             if (ddysLine) {
                 matchedSources.push(ddysLine);
                 console.log(`${TAG} 成功载入低端影视专属线路: ${ddysLine.sourceName} (${ddysLine.episodes.length} 集)`);
@@ -817,7 +846,7 @@
 
         // 3. 检索并接入低端影视 DDrk (DDYS.one) 专属「X节点 (新浪1080P)」
         try {
-            const ddysOneLine = await searchDDYSOneLine(keywords);
+            const ddysOneLine = await searchDDYSOneLine(keywords, title);
             if (ddysOneLine) {
                 matchedSources.push(ddysOneLine);
                 console.log(`${TAG} 成功载入低端影视DDrk专属线路: ${ddysOneLine.sourceName} (${ddysOneLine.episodes.length} 集)`);
@@ -834,12 +863,19 @@
                     const data = await requestApi(src.api + encodeURIComponent(kw));
                     if (!data || !data.list || !data.list.length) continue;
 
-                    const normKw = normalizeTitleForMatch(kw);
-                    const matchedVod = data.list.find(vod => {
-                        const vName = parseTitleAndEp(vod.vod_name).title;
-                        const normVName = normalizeTitleForMatch(vName);
-                        return normVName === normKw || vName === kw || vName.includes(kw) || kw.includes(vName);
-                    }) || data.list[0];
+                    let bestVod = null;
+                    let bestScore = 0;
+                    for (const vod of data.list) {
+                        const score = calculateMatchScore(vod.vod_name, title || kw, kw);
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestVod = vod;
+                            if (bestScore === 100) break;
+                        }
+                    }
+
+                    if (!bestVod || bestScore < 50) continue;
+                    const matchedVod = bestVod;
 
                     if (!matchedVod || !matchedVod.vod_play_url) continue;
 
