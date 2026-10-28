@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.8.8
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、彻底剥离爱壹帆原生-01-免费等业务标签、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.8.9
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（为设置面板内的倍速、跳过片头、跳过片尾分别重绘专属专属精致SVG矢量微图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、彻底剥离爱壹帆原生-01-免费等业务标签、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -1639,6 +1639,7 @@
                     setting: true,
                     settings: [
                         {
+                            icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14l4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/><circle cx="12" cy="14" r="2"/></svg>',
                             width: 220,
                             html: '倍速',
                             tooltip: '1.0×',
@@ -1656,6 +1657,7 @@
                             }
                         },
                         {
+                            icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="5" x2="3" y2="19"/><polygon points="8 5 15 12 8 19 8 5"/><polygon points="14 5 21 12 14 19 14 5"/></svg>',
                             width: 220,
                             html: '跳过片头',
                             tooltip: GM_getValue('yfsp_skip_opening', 0) ? `${GM_getValue('yfsp_skip_opening', 0)}秒` : '关闭',
@@ -1672,6 +1674,7 @@
                             }
                         },
                         {
+                            icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 5 10 12 3 19 3 5"/><polygon points="9 5 16 12 9 19 9 5"/><line x1="18" y1="5" x2="18" y2="19"/><line x1="21" y1="5" x2="21" y2="19"/></svg>',
                             width: 220,
                             html: '跳过片尾',
                             tooltip: GM_getValue('yfsp_skip_ending', 0) ? `${GM_getValue('yfsp_skip_ending', 0)}秒` : '关闭',
@@ -2720,6 +2723,19 @@
             }
             .art-video-player .art-setting-item:hover {
                 background: rgba(255, 255, 255, 0.14) !important;
+            }
+            .art-video-player .art-setting-item .art-icon {
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                margin-right: 8px !important;
+                opacity: 0.9 !important;
+            }
+            .art-video-player .art-setting-item .art-icon svg {
+                width: 17px !important;
+                height: 17px !important;
+                display: block !important;
+                stroke: currentColor !important;
             }
             /* 7. 控制按钮微交互反馈 */
             .art-video-player .art-control {
