@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.8.3
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（参考555电影优化底栏交互：未全屏进窗即显出窗80ms立隐、全屏沉浸底部120px宽幅黄金热区滑升浮现与离开沉退、彻底修复电影误将页面VOD编号识别为集数的历史旧疾、排除年份干扰、全局捕获拦截键盘空格键精准控制暂停/播放防滚屏、方向键步进），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.8.4
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（彻底修复电视剧/动漫分集集数定位与识别机制、支持爱壹帆原生两段式分集URL路径匹配、多节点全域标题深度解析、完美兼容单片电影与多集影视、参考555电影优化未全屏出窗立退与全屏120px宽幅热区感应），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -38,7 +38,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.8.3) - 555同款双模交互（未全屏出窗立退、全屏120px热区即显与离开沉退）就绪`);
+    console.log(`${TAG} 脚本已启动 (v2.8.4) - 剧集精准定位自愈、单片与多集双模适配就绪`);
 
     // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
     try {
@@ -412,67 +412,73 @@
     }
 
     function detectVideoInfoFromDOM() {
-        // 重置状态
-        isMovieMode = false;
-        currentEpisodeNum = '';
+        // 保留接口可能已先行截获的集数信息，绝不盲目清空
+        let detectedEp = currentEpisodeNum || '';
 
-        // 1. 抓取影视名称与集数 (优先从标题提取，如 "一念永恒完结季 17", "仙逆 第154集")
-        const titleEl = document.querySelector('.title, .video-name, .n-media-title, h1, .video-title');
-        const rawTitle = titleEl ? titleEl.textContent : document.title;
+        // 1. 全域标题多节点扫描（确保捕获类似 "小城良方 04"、"仙逆 第154集" 的完整片名与集数）
+        const titleNodes = document.querySelectorAll('.video-title, h1, .video-name, .n-media-title, .title, .video-info-title, [class*="video-title"]');
+        let rawTitle = '';
+        for (const node of titleNodes) {
+            const txt = (node.textContent || '').trim();
+            if (txt && (!rawTitle || txt.length > rawTitle.length)) {
+                rawTitle = txt;
+            }
+        }
+        if (!rawTitle) rawTitle = document.title;
+
         const parsed = parseTitleAndEp(rawTitle);
         if (parsed.title) currentVideoTitle = parsed.title;
+        if (parsed.ep && !detectedEp) {
+            detectedEp = parsed.ep;
+        }
 
-        // 2. 检查多集特征与选集列表
-        const pageText = document.body ? document.body.innerText : '';
-        const hasSeriesText = /更新[到至]\s*\d+\s*[集话期]|共\s*\d+\s*[集话期]|\d+\s*集全/.test(pageText);
-
-        // 选集列表元素（至少需要两个及以上按钮才是真正的连载剧集）
-        const epList = document.querySelectorAll('.player-media-list a, .episode-item, .ep-item, .anthology-item, .series-item, [class*="episode-item"], [class*="ep-item"]');
+        // 2. 从爱壹帆播放列表/选集按钮抓取当前激活的高亮集数
         const activeEp = document.querySelector('.player-media-list .active, .episode-item.active, .ep-item.active, .anthology-item.active, .series-item.active, [class*="episode"].active, [class*="ep-item"].active');
-
-        // 3. 从爱壹帆播放列表/选集按钮抓取当前激活的高亮集数
         if (activeEp && activeEp.textContent) {
             const m = activeEp.textContent.match(/第?\s*(\d+)\s*[集话期]?/);
             if (m) {
-                currentEpisodeNum = String(parseInt(m[1], 10));
+                detectedEp = String(parseInt(m[1], 10));
             }
         }
 
-        // 4. 如果没有高亮集数，但片名直接带有集数编号（如 "仙逆 第154集"），提取集数
-        if (!currentEpisodeNum && parsed.ep) {
-            currentEpisodeNum = parsed.ep;
-        }
-
-        // 5. 从 URL 中提取集数（严禁提取单段电影 VOD 编号如 /576.html，仅支持显式 ?ep= 或多段 /576-1-2.html）
-        if (!currentEpisodeNum) {
-            const queryEp = location.href.match(/[?&](?:ep|episode|p)=(\d+)/i);
-            const pathMultiSegment = location.href.match(/\/\d+-\d+-(\d+)(?:\.html)?(?:$|[?#])/);
+        // 3. 从 URL 中智能提取集数（严密区分：电影单段ID vs 电视剧两段/多段分集路径）
+        if (!detectedEp) {
+            // 路径规则 1: 爱壹帆原生分集两段式路径，如 /play/801071/4 或 /play/801071/4.html
+            const pathTwoSegments = location.href.match(/\/play\/\d+\/(\d+)(?:\.html)?(?:$|[?#])/i) || location.href.match(/\/\d+\/(\d+)(?:\.html)?(?:$|[?#])/);
+            // 路径规则 2: 三段连字符式路径，如 /play/801071-1-4.html
+            const pathHyphenSegment = location.href.match(/\/\d+-\d+-(\d+)(?:\.html)?(?:$|[?#])/);
+            // 路径规则 3: 显式查询参数或分级路径，如 ?ep=4, ?p=4, ?nid=4, /ep/4
+            const queryEp = location.href.match(/[?&](?:ep|episode|p|nid)=(\d+)/i);
             const pathExplicitEp = location.href.match(/\/(?:ep|episode|p)\/(\d+)(?:\.html)?(?:$|[?#])/i);
-            const urlEpMatch = queryEp || pathMultiSegment || pathExplicitEp;
+
+            const urlEpMatch = pathTwoSegments || pathHyphenSegment || queryEp || pathExplicitEp;
             if (urlEpMatch) {
-                currentEpisodeNum = String(parseInt(urlEpMatch[1], 10));
+                detectedEp = String(parseInt(urlEpMatch[1], 10));
             }
         }
 
-        // 6. 电影单片严格判定：
-        // 若页面没有连载特征文字、无选集列表，或带有明确“电影”标签，一律归为单片模式
+        // 4. 检查多集连载特征与电影标签
+        const pageText = document.body ? document.body.innerText : '';
+        const hasSeriesText = /更新[到至]\s*\d+\s*[集话期]|共\s*\d+\s*[集话期]|\d+\s*集全/.test(pageText);
+        const epList = document.querySelectorAll('.player-media-list a, .episode-item, .ep-item, .anthology-item, .series-item, [class*="episode-item"], [class*="ep-item"]');
+
         const hasMovieTag = Array.from(document.querySelectorAll('.tag, .genre, .breadcrumb, .video-tag, .info-item, .info-tags span, .label, a[href*="movie"], .detail-info-item')).some(el => {
             const txt = (el.textContent || '').trim();
             return txt === '电影' || txt.includes('电影');
         });
 
-        const isDefinitelySeries = hasSeriesText || (epList && epList.length >= 2);
+        // 5. 电视剧/动漫/综艺多集模式 vs 电影单片模式精准收敛
+        // 判定标准：只要有具体集数、页面有“更新到/共xx集/xx集全”、或者选集列表按钮 >= 2，且无电影标签，一律锁定为多集模式
+        const isDefinitelySeries = !!detectedEp || hasSeriesText || (epList && epList.length >= 2);
 
-        if (!isDefinitelySeries || hasMovieTag) {
-            // 没有连载特征，或者是电影，判定为单片电影模式
-            if (!currentEpisodeNum || hasMovieTag) {
-                isMovieMode = true;
-                currentEpisodeNum = '';
-            }
-        } else {
-            // 确为剧集，若未识别到具体第几集，默认第1集
+        if (isDefinitelySeries && !hasMovieTag) {
             isMovieMode = false;
-            if (!currentEpisodeNum) currentEpisodeNum = '1';
+            // 确为剧集，若因各种原因仍未拿到具体集数，才兜底为第 1 集
+            currentEpisodeNum = detectedEp || '1';
+        } else {
+            // 纯单片电影模式：绝不生成集数
+            isMovieMode = true;
+            currentEpisodeNum = '';
         }
     }
 
