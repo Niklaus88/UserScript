@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.9.7
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（精准修复首集状态下【上一集】与末集状态下【下一集】未呈现沉稳暗灰色的Bug、彻底杜绝全局按钮高特异性规则覆盖禁用态、支持DOM矢量填色与高优先级CSS双重灰阶着色、彻底修复全屏模式下鼠标触碰或划入底部140px宽幅热区无法呼出底栏Bug、全屏与窗口双模式动态多路事件捕获、彻底修复上一集/下一集切换期间旧视频背景声音泄露与加载层覆盖导致播放器失联卡死Bug、非电影类连载节目专属全新重磅上线【上一集/下一集】无缝秒切功能，严格锁定控制栏排版为【上一集⏮】->【播放▶】->【下一集⏭】->【音量🔊】->【时间戳】、采用方案A内嵌无刷新平滑切流保持全屏不被打断并静默同步地址栏与页面选集高亮、首集与末集智能半透明置灰防呆、视频播放完毕或片尾跳过自动连播下一集、精准收敛设置抽屉面板宽度至精致紧凑比例消除空旷感、彻底消除Artplayer默认居中导致的图标文字参差不齐Bug实现设置项图标与文字绝对左对齐、精准修复设置抽屉菜单右侧箭头图标变形切角与左侧矢量图标实心填充Bug、精准隔离控制按钮样式彻底修复时间戳与进度条重叠挤压Bug、精修控制按钮悬停微圆环光效消除过大长方形高晕、柔和收敛进度条选中微动动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.9.8
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（彻底重构双模式独立自愈响应系统实现窗口模式进窗即显移出立退与全屏模式触底140px宽幅热区毫秒级滑升双向完美自愈、彻底清除代码多余空格消除篡改猴所有黄色感叹号语法警告、精准修复首集状态下【上一集】与末集状态下【下一集】未呈现沉稳暗灰色的Bug、彻底杜绝全局按钮高特异性规则覆盖禁用态、支持DOM矢量填色与高优先级CSS双重灰阶着色、彻底修复上一集/下一集切换期间旧视频背景声音泄露与加载层覆盖导致播放器失联卡死Bug、非电影类连载节目专属全新重磅上线【上一集/下一集】无缝秒切功能，严格锁定控制栏排版为【上一集⏮】->【播放▶】->【下一集⏭】->【音量🔊】->【时间戳】、采用方案A内嵌无刷新平滑切流保持全屏不被打断并静默同步地址栏与页面选集高亮、首集与末集智能半透明置灰防呆、视频播放完毕或片尾跳过自动连播下一集、精准收敛设置抽屉面板宽度至精致紧凑比例消除空旷感、彻底消除Artplayer默认居中导致的图标文字参差不齐Bug实现设置项图标与文字绝对左对齐、精准修复设置抽屉菜单右侧箭头图标变形切角与左侧矢量图标实心填充Bug、精准隔离控制按钮样式彻底修复时间戳与进度条重叠挤压Bug、精修控制按钮悬停微圆环光效消除过大长方形高晕、柔和收敛进度条选中微动动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -38,7 +38,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.9.7) - 首尾集置灰视觉优化与全屏底栏唤醒就绪`);
+    console.log(`${TAG} 脚本已启动 (v2.9.8) - 双模式底栏自愈响应重构与感叹号告警彻底消除`);
 
     // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
     try {
@@ -59,7 +59,7 @@
     // 全局当前状态
     let currentVideoTitle = '';
     let currentEpisodeNum = ''; // 默认为空（电影/单片无集数，多集剧集才记录数字）
-    let isMovieMode = false;    // 标识是否为电影单片模式
+    let isMovieMode = false; // 标识是否为电影单片模式
     let artInstance = null;
     let isHdActive = false;
     let currentMatchedList = [];
@@ -1319,17 +1319,17 @@
             if (name.includes('极速蓝光-r') || name.includes('-r')) {
                 weight += 100; // Top 1: 555·极速蓝光-R（默认首选起播线路）
             } else if (name.includes('极速蓝光-b') || name.includes('-b')) {
-                weight += 80;  // Top 2: 555·极速蓝光-b（默认第二搜索备选源）
+                weight += 80; // Top 2: 555·极速蓝光-b（默认第二搜索备选源）
             } else if (name.includes('极速蓝光-js') || name.includes('-js')) {
-                weight += 60;  // Top 3: 555·极速蓝光-js
+                weight += 60; // Top 3: 555·极速蓝光-js
             } else if (name.includes('极速蓝光')) {
-                weight += 50;  // Top 4: 555·极速蓝光通用系列（-f, -s等）
+                weight += 50; // Top 4: 555·极速蓝光通用系列（-f, -s等）
             } else if (name.includes('高清蓝光') || name.includes('高清')) {
-                weight += 40;  // Top 5: 555·高清蓝光（降至极速系列之后）
+                weight += 40; // Top 5: 555·高清蓝光（降至极速系列之后）
             } else if (source.sourceId && source.sourceId.includes('ddys')) {
-                weight += 30;  // Top 6: 低端影视 DDYS 专属1080P
+                weight += 30; // Top 6: 低端影视 DDYS 专属1080P
             } else {
-                weight += 10;  // Top 7: 其他第三方独立采集源
+                weight += 10; // Top 7: 其他第三方独立采集源
             }
 
             return weight;
@@ -1961,22 +1961,11 @@
                 let isDraggingControl = false;
                 let isControlsAwake = true;
 
-                const getAllPlayerEls = () => {
-                    const list = [];
-                    if (container) list.push(container);
-                    if (artInstance && artInstance.template) {
-                        if (artInstance.template.$player && !list.includes(artInstance.template.$player)) {
-                            list.push(artInstance.template.$player);
-                        }
-                        if (artInstance.template.$container && !list.includes(artInstance.template.$container)) {
-                            list.push(artInstance.template.$container);
-                        }
+                const getPlayerEl = () => {
+                    if (artInstance && artInstance.template && artInstance.template.$player) {
+                        return artInstance.template.$player;
                     }
-                    const domPlayer = document.querySelector('.art-video-player');
-                    if (domPlayer && !list.includes(domPlayer)) {
-                        list.push(domPlayer);
-                    }
-                    return list;
+                    return document.querySelector('.art-video-player') || container;
                 };
 
                 const getIsFullscreen = () => {
@@ -1996,27 +1985,34 @@
                     if (artInstance.setting && artInstance.setting.show) return;
                     if (isDraggingControl) return;
 
-                    const els = getAllPlayerEls();
-                    const isFs = getIsFullscreen();
-                    els.forEach(el => {
-                        el.classList.add('yfsp-controls-hidden');
-                        if (isFs) el.classList.add('yfsp-cursor-hidden');
-                    });
+                    const pEl = getPlayerEl();
+                    if (pEl) {
+                        pEl.classList.add('yfsp-controls-hidden');
+                        if (getIsFullscreen()) {
+                            pEl.classList.add('yfsp-cursor-hidden');
+                        }
+                    }
                     isControlsAwake = false;
                 };
 
                 const wakeControls = () => {
-                    const els = getAllPlayerEls();
-                    els.forEach(el => {
-                        el.classList.remove('yfsp-controls-hidden');
-                        el.classList.remove('yfsp-cursor-hidden');
-                    });
+                    const pEl = getPlayerEl();
+                    if (pEl) {
+                        pEl.classList.remove('yfsp-controls-hidden');
+                        pEl.classList.remove('yfsp-cursor-hidden');
+                    }
+                    if (container) {
+                        container.classList.remove('yfsp-controls-hidden');
+                        container.classList.remove('yfsp-cursor-hidden');
+                    }
+                    const domPlayer = document.querySelector('.art-video-player');
+                    if (domPlayer && domPlayer !== pEl) {
+                        domPlayer.classList.remove('yfsp-controls-hidden');
+                        domPlayer.classList.remove('yfsp-cursor-hidden');
+                    }
                     if (autoHideTimer) {
                         clearTimeout(autoHideTimer);
                         autoHideTimer = null;
-                    }
-                    if (artInstance && artInstance.controls) {
-                        try { artInstance.controls.show = true; } catch (e) {}
                     }
                     isControlsAwake = true;
                 };
@@ -2031,86 +2027,33 @@
                 };
 
                 const showCursor = () => {
-                    const els = getAllPlayerEls();
-                    els.forEach(el => el.classList.remove('yfsp-cursor-hidden'));
+                    const pEl = getPlayerEl();
+                    if (pEl) pEl.classList.remove('yfsp-cursor-hidden');
                     if (cursorTimer) clearTimeout(cursorTimer);
                     if (artInstance && artInstance.playing && getIsFullscreen()) {
                         cursorTimer = setTimeout(() => {
-                            if (!isControlsAwake) {
-                                els.forEach(el => el.classList.add('yfsp-cursor-hidden'));
+                            if (!isControlsAwake && pEl) {
+                                pEl.classList.add('yfsp-cursor-hidden');
                             }
                         }, 2000);
                     }
                 };
 
-                const handleMouseMove = (e) => {
-                    if (!e) return;
-                    showCursor();
-
-                    // 1. 暂停状态下始终保持底栏常驻显示
-                    if (artInstance && !artInstance.playing) {
-                        wakeControls();
-                        return;
-                    }
-
-                    const isFullscreen = getIsFullscreen();
-
-                    // 2. 模式 A: 未全屏（普通网页窗口模式）
-                    if (!isFullscreen) {
-                        const pEl = (artInstance && artInstance.template && artInstance.template.$player) || document.querySelector('.art-video-player') || container;
-                        if (!pEl) return;
-                        const rect = pEl.getBoundingClientRect();
-                        const isInsideHorizontally = e.clientX >= rect.left && e.clientX <= rect.right;
-                        const isInsideVertically = e.clientY >= rect.top && e.clientY <= rect.bottom;
-                        const isInsideWindow = isInsideHorizontally && isInsideVertically;
-
-                        if (isInsideWindow) {
-                            wakeControls();
-                            scheduleRetreat(2500);
-                        } else {
-                            // 移出窗口外部：立即平滑收起（80ms）
-                            scheduleRetreat(80);
-                        }
-                        return;
-                    }
-
-                    // 3. 模式 B: 全屏模式
-                    // 在全屏模式下，视口绝对底部高度为 screenH，彻底摆脱网页文档流或内联容器坐标干扰
-                    const screenH = window.innerHeight || (document.documentElement && document.documentElement.clientHeight) || screen.height;
-                    const distanceFromBottom = screenH - e.clientY;
-
-                    // 热区设计：底部 140px（包含 46px 底栏 + 16px 贴底边距及上方宽幅感应区）
-                    const isNearBottomHotzone = (distanceFromBottom >= -10 && distanceFromBottom <= 140);
-
-                    if (!isControlsAwake) {
-                        // 当前为隐藏状态：只要鼠标触碰或划入底部 140px 热区，立即平滑滑升呼出
-                        if (isNearBottomHotzone) {
-                            wakeControls();
-                            scheduleRetreat(2500);
-                        }
-                    } else {
-                        // 控制栏已在显示状态：
-                        const target = e.target;
-                        const isOverVolume = target && target.closest && target.closest('.art-volume-panel, .art-control-volume');
-                        const isOverSettings = target && target.closest && target.closest('.art-settings');
-
-                        if (isNearBottomHotzone || isOverVolume || isOverSettings || isDraggingControl) {
-                            wakeControls();
-                            scheduleRetreat(2500);
-                        } else {
-                            // 鼠标向上划出底部区域进入观影大屏，0.6 秒平滑沉退收回
-                            scheduleRetreat(600);
-                        }
-                    }
-                };
-
-                // 进出容器事件监听（未全屏模式下：进窗即显，出窗立即收起）
+                // 模式 A: 未全屏（窗口模式：鼠标进入窗口即显，鼠标移动保持常驻，鼠标移出窗口 80ms 立即平滑收起）
                 container.addEventListener('mouseenter', () => {
                     if (!getIsFullscreen()) {
+                        showCursor();
                         wakeControls();
                         scheduleRetreat(2500);
                     }
                 });
+                container.addEventListener('mousemove', () => {
+                    if (!getIsFullscreen()) {
+                        showCursor();
+                        wakeControls();
+                        scheduleRetreat(2500);
+                    }
+                }, { passive: true });
                 container.addEventListener('mouseleave', () => {
                     if (!getIsFullscreen()) {
                         if (artInstance && artInstance.playing && !isDraggingControl) {
@@ -2119,25 +2062,65 @@
                     }
                 });
 
-                // 全面覆盖鼠标移动事件监听（保证全屏、全屏切换、窗口移动 100% 捕获）
-                container.addEventListener('mousemove', handleMouseMove, { passive: true });
-                window.addEventListener('mousemove', handleMouseMove, { passive: true });
-                document.addEventListener('mousemove', handleMouseMove, { passive: true });
-                if (artInstance && artInstance.template && artInstance.template.$player) {
-                    artInstance.template.$player.addEventListener('mousemove', handleMouseMove, { passive: true });
-                }
-                artInstance.on('mousemove', handleMouseMove);
-                artInstance.on('document:mousemove', handleMouseMove);
+                // 模式 B: 全屏模式（底部 140px 宽幅黄金热区感应与平滑升退）
+                const handleFullscreenMouseMove = (e) => {
+                    if (!e || !getIsFullscreen()) return;
+                    showCursor();
+
+                    // 暂停状态下始终保持底栏常驻显示
+                    if (artInstance && !artInstance.playing) {
+                        wakeControls();
+                        return;
+                    }
+
+                    const screenH = window.innerHeight || screen.height;
+                    const distanceFromBottom = screenH - e.clientY;
+
+                    // 底部 140px 热区感应
+                    const isNearBottomHotzone = (distanceFromBottom >= -10 && distanceFromBottom <= 140);
+
+                    if (!isControlsAwake) {
+                        // 隐藏状态：只要鼠标触碰或划入底部 140px 热区，立即平滑滑升呼出
+                        if (isNearBottomHotzone) {
+                            wakeControls();
+                            scheduleRetreat(2500);
+                        }
+                    } else {
+                        // 唤醒状态：
+                        const target = e.target;
+                        const isOverPanel = target && target.closest && target.closest('.art-volume-panel, .art-control-volume, .art-settings');
+
+                        if (isNearBottomHotzone || isOverPanel || isDraggingControl) {
+                            wakeControls();
+                            scheduleRetreat(2500);
+                        } else {
+                            // 鼠标向上划出底部感应区进入大屏，0.6 秒平滑沉退
+                            scheduleRetreat(600);
+                        }
+                    }
+                };
+
+                // 全屏模式鼠标事件监听（仅在全屏状态下激活，绝不干扰未全屏窗口模式）
+                document.addEventListener('mousemove', (e) => {
+                    if (getIsFullscreen()) {
+                        handleFullscreenMouseMove(e);
+                    }
+                }, { passive: true });
+                window.addEventListener('mousemove', (e) => {
+                    if (getIsFullscreen()) {
+                        handleFullscreenMouseMove(e);
+                    }
+                }, { passive: true });
 
                 // 全屏状态变动联动：进出全屏即刻呼出底栏并在 2.5 秒后平滑沉退
-                const handleFullscreenChange = () => {
+                const onFullscreenChange = () => {
                     wakeControls();
                     scheduleRetreat(2500);
                 };
-                artInstance.on('fullscreen', handleFullscreenChange);
-                artInstance.on('fullscreenWeb', handleFullscreenChange);
-                document.addEventListener('fullscreenchange', handleFullscreenChange, { passive: true });
-                document.addEventListener('webkitfullscreenchange', handleFullscreenChange, { passive: true });
+                artInstance.on('fullscreen', onFullscreenChange);
+                artInstance.on('fullscreenWeb', onFullscreenChange);
+                document.addEventListener('fullscreenchange', onFullscreenChange, { passive: true });
+                document.addEventListener('webkitfullscreenchange', onFullscreenChange, { passive: true });
 
                 // 播放/暂停状态联动：暂停时持续常驻显示控制栏，播放时启动自动休眠倒计时
                 artInstance.on('play', () => {
@@ -2773,17 +2756,14 @@
                 overflow: visible !important;
             }
             /* 纯边缘贴底呼出模式：离开底部后平滑沉退收回（下沉 16px 并淡出），进入底部后从 16px 处平滑滑升 */
-            .art-video-player.yfsp-controls-hidden .art-bottom,
-            .yfsp-artplayer-container.yfsp-controls-hidden .art-bottom {
+            .art-video-player.yfsp-controls-hidden .art-bottom {
                 opacity: 0 !important;
                 transform: translateY(16px) scale(0.98) !important;
                 pointer-events: none !important;
             }
             /* 观影无干扰隐蔽指针 */
             .art-video-player.yfsp-cursor-hidden,
-            .art-video-player.yfsp-cursor-hidden *,
-            .yfsp-artplayer-container.yfsp-cursor-hidden,
-            .yfsp-artplayer-container.yfsp-cursor-hidden * {
+            .art-video-player.yfsp-cursor-hidden * {
                 cursor: none !important;
             }
             /* 彻底根除进度条与控制器割裂问题：坚决锁定进度条在胶囊内部，彻底屏蔽 Artplayer 默认的偏移降级 */
