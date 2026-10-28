@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.8.9
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（为设置面板内的倍速、跳过片头、跳过片尾分别重绘专属专属精致SVG矢量微图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、彻底剥离爱壹帆原生-01-免费等业务标签、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.9.0
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（大幅精修控制按钮悬停微圆环光效彻底消除过大长方形高晕、柔和收敛进度条选中动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -2530,15 +2530,15 @@
                 overflow: visible !important;
             }
             .art-video-player .art-control-progress {
-                height: 5px !important;
+                height: 4px !important;
                 display: flex !important;
                 align-items: center !important;
                 width: 100% !important;
-                transition: height 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+                transition: height 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
                 overflow: visible !important;
             }
             .art-video-player .art-bottom .art-progress:hover .art-control-progress {
-                height: 8px !important;
+                height: 5.5px !important;
             }
             .art-video-player .art-control-progress-inner {
                 background-color: rgba(255, 255, 255, 0.16) !important;
@@ -2546,19 +2546,26 @@
                 height: 100% !important;
             }
             .art-video-player .art-progress-loaded {
-                background-color: rgba(255, 255, 255, 0.32) !important;
+                background-color: rgba(255, 255, 255, 0.28) !important;
                 border-radius: 999px !important;
             }
             .art-video-player .art-progress-played {
                 background: #ffffff !important;
                 border-radius: 999px !important;
-                box-shadow: 0 0 12px rgba(255, 255, 255, 0.85), 0 0 4px rgba(255, 255, 255, 1) !important;
+                box-shadow: 0 0 3px rgba(255, 255, 255, 0.45) !important;
             }
             .art-video-player .art-progress-indicator {
+                width: 10px !important;
+                height: 10px !important;
                 background: #ffffff !important;
-                border: 2px solid #ffffff !important;
+                border: none !important;
                 border-radius: 50% !important;
-                box-shadow: 0 0 10px rgba(255, 255, 255, 0.95), 0 1px 4px rgba(0,0,0,0.5) !important;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 2px rgba(255, 255, 255, 0.6) !important;
+                transform: scale(0.9) !important;
+                transition: transform 0.15s ease-out !important;
+            }
+            .art-video-player .art-bottom .art-progress:hover .art-progress-indicator {
+                transform: scale(1.15) !important;
             }
             .art-video-player .art-progress-tip {
                 background: rgba(18, 22, 32, 0.92) !important;
@@ -2737,14 +2744,24 @@
                 display: block !important;
                 stroke: currentColor !important;
             }
-            /* 7. 控制按钮微交互反馈 */
-            .art-video-player .art-control {
-                border-radius: 12px !important;
+            /* 7. 控制按钮微交互反馈（收敛为小巧圆润微底托，彻底杜绝粗大长方形光晕） */
+            .art-video-player .art-bottom .art-control {
+                height: 32px !important;
+                width: 32px !important;
+                border-radius: 50% !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                padding: 0 !important;
+                margin: 0 1px !important;
+                background: transparent !important;
+                opacity: 0.88 !important;
                 transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
             }
-            .art-video-player .art-control:hover {
-                background: rgba(255, 255, 255, 0.18) !important;
-                transform: translateY(-1px) scale(1.05) !important;
+            .art-video-player .art-bottom .art-control:hover {
+                opacity: 1 !important;
+                background: rgba(255, 255, 255, 0.10) !important;
+                transform: scale(1.06) !important;
             }
 
             /* 加载中动画 */
