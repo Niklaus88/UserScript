@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.9.0
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（大幅精修控制按钮悬停微圆环光效彻底消除过大长方形高晕、柔和收敛进度条选中动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.9.1
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（精准隔离控制按钮样式彻底修复时间戳与进度条重叠挤压Bug、精修控制按钮悬停微圆环光效消除过大长方形高晕、柔和收敛进度条选中微动动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -2513,15 +2513,29 @@
                 font-size: 11px !important;
                 font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
                 color: rgba(255, 255, 255, 0.85) !important;
-                padding: 0 4px !important;
+                padding: 0 6px !important;
+                margin: 0 !important;
+                width: auto !important;
+                height: 100% !important;
+                display: inline-flex !important;
+                align-items: center !important;
                 letter-spacing: 0.5px !important;
                 user-select: none !important;
+                white-space: nowrap !important;
+                background: transparent !important;
+                border-radius: 0 !important;
+                flex-shrink: 0 !important;
+            }
+            .art-video-player .art-control-time:hover {
+                background: transparent !important;
+                transform: none !important;
             }
             /* 3. 中间区：纯白流体自适应进度条 */
             .art-video-player .art-bottom .art-progress {
                 order: 2 !important;
-                flex: 1 !important;
-                margin: 0 6px !important;
+                flex: 1 1 auto !important;
+                min-width: 120px !important;
+                margin: 0 8px !important;
                 padding: 0 !important;
                 height: 100% !important;
                 display: flex !important;
@@ -2536,6 +2550,14 @@
                 width: 100% !important;
                 transition: height 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
                 overflow: visible !important;
+                background: transparent !important;
+                border-radius: 999px !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .art-video-player .art-control-progress:hover {
+                background: transparent !important;
+                transform: none !important;
             }
             .art-video-player .art-bottom .art-progress:hover .art-control-progress {
                 height: 5.5px !important;
@@ -2744,8 +2766,8 @@
                 display: block !important;
                 stroke: currentColor !important;
             }
-            /* 7. 控制按钮微交互反馈（收敛为小巧圆润微底托，彻底杜绝粗大长方形光晕） */
-            .art-video-player .art-bottom .art-control {
+            /* 7. 控制按钮微交互反馈（仅作用于可点击的图标按钮，坚决排除时间戳与进度条容器） */
+            .art-video-player .art-bottom .art-control:not(.art-control-progress):not(.art-control-time) {
                 height: 32px !important;
                 width: 32px !important;
                 border-radius: 50% !important;
@@ -2758,7 +2780,7 @@
                 opacity: 0.88 !important;
                 transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
             }
-            .art-video-player .art-bottom .art-control:hover {
+            .art-video-player .art-bottom .art-control:not(.art-control-progress):not(.art-control-time):hover {
                 opacity: 1 !important;
                 background: rgba(255, 255, 255, 0.10) !important;
                 transform: scale(1.06) !important;
