@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.7.4
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，一键切换极清画质，免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统（彻底杜绝第2季误播第1季），全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.7.5
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（极简单行浮岛、流体纯白发光进度条、垂直音量调节胶囊、设置内置倍速与画中画模式），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -38,7 +38,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.7.4) - 防串季跨源打分匹配与全线路极清蓝光就绪`);
+    console.log(`${TAG} 脚本已启动 (v2.7.5) - iOS 纯白超透液体玻璃播放系统就绪`);
 
     // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
     try {
@@ -995,7 +995,6 @@
             overlay.innerHTML = `
                 <div class="yfsp-hd-header">
                     <div class="yfsp-hd-info">
-                        <span class="yfsp-hd-badge">1080P 极清</span>
                         <span id="yfsp-hd-title-text" class="yfsp-hd-title">加载中...</span>
                     </div>
                     <div class="yfsp-hd-actions">
@@ -1379,16 +1378,35 @@
                             }
                         }
                     },
-                    theme: '#ffb400',
+                    theme: '#ffffff',
                     autoplay: true,
                     autoSize: true,
-                    playbackRate: true,
-                    aspectRatio: true,
+                    playbackRate: false,
+                    aspectRatio: false,
                     setting: true,
+                    settings: [
+                        {
+                            width: 220,
+                            html: '倍速',
+                            tooltip: '1.0×',
+                            selector: [
+                                { html: '0.5×', value: 0.5 },
+                                { html: '0.75×', value: 0.75 },
+                                { default: true, html: '1.0× 正常', value: 1.0 },
+                                { html: '1.25×', value: 1.25 },
+                                { html: '1.5×', value: 1.5 },
+                                { html: '2.0×', value: 2.0 }
+                            ],
+                            onSelect: function (item) {
+                                artInstance.playbackRate = item.value;
+                                return item.html;
+                            }
+                        }
+                    ],
                     hotkey: true,
                     pip: true,
                     fullscreen: true,
-                    fullscreenWeb: true,
+                    fullscreenWeb: false,
                     miniProgressBar: true,
                     playsInline: true,
                     autoPlayback: true
@@ -1765,66 +1783,79 @@
                 flex-direction: column;
             }
             .yfsp-hd-header {
-                height: 48px;
-                background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent);
+                height: 54px;
+                background: transparent;
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                padding: 0 16px;
+                padding: 12px 18px;
                 position: absolute;
                 top: 0;
                 left: 0;
                 right: 0;
                 z-index: 20;
-                color: #fff;
+                pointer-events: none;
             }
             .yfsp-hd-info {
+                pointer-events: auto;
+                background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(25, 30, 45, 0.28) 45%, rgba(12, 15, 22, 0.42) 100%);
+                backdrop-filter: blur(24px) saturate(200%);
+                -webkit-backdrop-filter: blur(24px) saturate(200%);
+                border: 1px solid rgba(255, 255, 255, 0.20);
+                border-radius: 999px;
+                padding: 6px 16px;
+                box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.45), 0 8px 24px rgba(0, 0, 0, 0.4);
+                display: flex;
+                align-items: center;
+            }
+            .yfsp-hd-title {
+                font-size: 13px;
+                font-weight: 600;
+                color: #ffffff;
+                letter-spacing: 0.3px;
+            }
+            .yfsp-hd-actions {
+                pointer-events: auto;
                 display: flex;
                 align-items: center;
                 gap: 10px;
             }
-            .yfsp-hd-badge {
-                background: #ffb400;
-                color: #000;
-                font-size: 11px;
-                font-weight: 800;
-                padding: 2px 7px;
-                border-radius: 4px;
-            }
-            .yfsp-hd-title {
-                font-size: 14px;
-                font-weight: 600;
-                color: #f1f1f1;
-            }
-            .yfsp-hd-actions {
-                display: flex;
-                align-items: center;
-                gap: 12px;
-            }
             .yfsp-hd-select {
-                background: rgba(30, 30, 42, 0.85);
-                color: #fff;
-                border: 1px solid rgba(255, 255, 255, 0.25);
-                border-radius: 4px;
-                padding: 4px 10px;
+                background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(25, 30, 45, 0.28) 45%, rgba(12, 15, 22, 0.42) 100%);
+                backdrop-filter: blur(24px) saturate(200%);
+                -webkit-backdrop-filter: blur(24px) saturate(200%);
+                border: 1px solid rgba(255, 255, 255, 0.20);
+                border-radius: 999px;
+                padding: 6px 14px;
+                color: #ffffff;
                 font-size: 12px;
+                font-weight: 600;
                 outline: none;
                 cursor: pointer;
+                box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.45), 0 8px 24px rgba(0, 0, 0, 0.4);
+                transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            }
+            .yfsp-hd-select:hover {
+                border-color: rgba(255, 255, 255, 0.45);
+                transform: translateY(-1px) scale(1.02);
             }
             .yfsp-hd-close {
-                background: rgba(255, 255, 255, 0.15);
-                color: #eee;
-                border: 1px solid rgba(255, 255, 255, 0.2);
-                padding: 5px 12px;
-                border-radius: 4px;
+                background: rgba(255, 255, 255, 0.08);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+                border-radius: 999px;
+                padding: 6px 14px;
+                color: rgba(255, 255, 255, 0.85);
                 font-size: 12px;
                 cursor: pointer;
-                transition: all 0.2s;
+                transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
             }
             .yfsp-hd-close:hover {
-                background: rgba(255, 77, 79, 0.9);
+                background: rgba(255, 77, 79, 0.85);
                 color: #fff;
                 border-color: transparent;
+                transform: translateY(-1px);
             }
             .yfsp-artplayer-container {
                 flex: 1;
@@ -1834,6 +1865,212 @@
                 align-items: center;
                 justify-content: center;
                 position: relative;
+            }
+
+            /* =========================================================================
+             * iOS 26/27 纯白高透液体玻璃播放系统 (Artplayer Liquid Glass Core)
+             * ========================================================================= */
+            .art-video-player {
+                --art-theme: #ffffff !important;
+                --art-font-color: #ffffff !important;
+            }
+            /* 1. 浮岛悬浮胶囊：单行整合，大幅释放全屏视野 */
+            .art-video-player .art-bottom {
+                top: auto !important;
+                bottom: 16px !important;
+                left: 18px !important;
+                right: 18px !important;
+                width: auto !important;
+                height: 46px !important;
+                padding: 0 14px !important;
+                display: flex !important;
+                flex-direction: row !important;
+                align-items: center !important;
+                gap: 10px !important;
+                background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(25, 30, 45, 0.28) 45%, rgba(12, 15, 22, 0.42) 100%) !important;
+                backdrop-filter: blur(24px) saturate(200%) contrast(102%) !important;
+                -webkit-backdrop-filter: blur(24px) saturate(200%) contrast(102%) !important;
+                border: 1px solid rgba(255, 255, 255, 0.20) !important;
+                border-radius: 999px !important;
+                box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.25), 0 12px 36px -6px rgba(0, 0, 0, 0.55), 0 4px 12px 0 rgba(0, 0, 0, 0.25) !important;
+                pointer-events: auto !important;
+                transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            .art-video-player.art-control-show .art-bottom,
+            .art-video-player.art-hover .art-bottom {
+                opacity: 1 !important;
+                transform: translateY(0) !important;
+            }
+            .art-video-player .art-bottom .art-controls {
+                display: contents !important;
+            }
+            /* 2. 左侧区：播放、音量、时间紧凑排列 */
+            .art-video-player .art-bottom .art-controls-left {
+                order: 1 !important;
+                display: flex !important;
+                align-items: center !important;
+                gap: 6px !important;
+                height: 100% !important;
+                flex-shrink: 0 !important;
+            }
+            .art-video-player .art-control-time {
+                font-size: 11px !important;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+                color: rgba(255, 255, 255, 0.85) !important;
+                padding: 0 4px !important;
+                letter-spacing: 0.5px !important;
+                user-select: none !important;
+            }
+            /* 3. 中间区：纯白流体自适应进度条 */
+            .art-video-player .art-bottom .art-progress {
+                order: 2 !important;
+                flex: 1 !important;
+                margin: 0 6px !important;
+                padding: 0 !important;
+                height: 100% !important;
+                display: flex !important;
+                align-items: center !important;
+                cursor: pointer !important;
+            }
+            .art-video-player .art-control-progress {
+                height: 5px !important;
+                display: flex !important;
+                align-items: center !important;
+                width: 100% !important;
+                transition: height 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            }
+            .art-video-player .art-bottom .art-progress:hover .art-control-progress {
+                height: 8px !important;
+            }
+            .art-video-player .art-control-progress-inner {
+                background-color: rgba(255, 255, 255, 0.16) !important;
+                border-radius: 999px !important;
+                height: 100% !important;
+            }
+            .art-video-player .art-progress-loaded {
+                background-color: rgba(255, 255, 255, 0.32) !important;
+                border-radius: 999px !important;
+            }
+            .art-video-player .art-progress-played {
+                background: #ffffff !important;
+                border-radius: 999px !important;
+                box-shadow: 0 0 12px rgba(255, 255, 255, 0.85), 0 0 4px rgba(255, 255, 255, 1) !important;
+            }
+            .art-video-player .art-progress-indicator {
+                background: #ffffff !important;
+                border: 2px solid #ffffff !important;
+                border-radius: 50% !important;
+                box-shadow: 0 0 10px rgba(255, 255, 255, 0.95), 0 1px 4px rgba(0,0,0,0.5) !important;
+            }
+            .art-video-player .art-progress-tip {
+                background: rgba(18, 22, 32, 0.88) !important;
+                backdrop-filter: blur(20px) !important;
+                border: 1px solid rgba(255, 255, 255, 0.2) !important;
+                border-radius: 8px !important;
+                color: #fff !important;
+            }
+            /* 4. 右侧区：极简三键流 [设置] [画中画] [全屏] */
+            .art-video-player .art-bottom .art-controls-right {
+                order: 3 !important;
+                display: flex !important;
+                align-items: center !important;
+                gap: 6px !important;
+                height: 100% !important;
+                flex-shrink: 0 !important;
+            }
+            .art-video-player .art-control-playbackRate,
+            .art-video-player .art-control-aspectRatio,
+            .art-video-player .art-control-fullscreenWeb {
+                display: none !important;
+            }
+            .art-video-player .art-control-setting {
+                order: 1 !important;
+            }
+            .art-video-player .art-control-pip {
+                order: 2 !important;
+                display: flex !important;
+            }
+            .art-video-player .art-control-fullscreen {
+                order: 3 !important;
+            }
+            /* 5. 悬停呼出垂直长条音量胶囊 */
+            .art-video-player .art-control-volume {
+                position: relative !important;
+            }
+            .art-video-player .art-volume-slider {
+                position: absolute !important;
+                bottom: calc(100% + 12px) !important;
+                left: 50% !important;
+                transform: translateX(-50%) translateY(8px) scale(0.95) !important;
+                width: 38px !important;
+                height: 120px !important;
+                border-radius: 20px !important;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                padding: 14px 0 !important;
+                background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(25, 30, 45, 0.38) 45%, rgba(12, 15, 22, 0.65) 100%) !important;
+                backdrop-filter: blur(24px) saturate(200%) !important;
+                -webkit-backdrop-filter: blur(24px) saturate(200%) !important;
+                border: 1px solid rgba(255, 255, 255, 0.20) !important;
+                box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), inset 0 1px 1.5px rgba(255, 255, 255, 0.35) !important;
+                opacity: 0;
+                pointer-events: none;
+                transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+                z-index: 50 !important;
+            }
+            .art-video-player .art-control-volume:hover .art-volume-slider,
+            .art-video-player .art-volume-slider:hover {
+                opacity: 1 !important;
+                pointer-events: auto !important;
+                transform: translateX(-50%) translateY(0) scale(1) !important;
+            }
+            .art-video-player .art-volume-slider-inner {
+                width: 5px !important;
+                height: 100% !important;
+                background: rgba(255, 255, 255, 0.22) !important;
+                border-radius: 999px !important;
+            }
+            .art-video-player .art-volume-slider-handle {
+                width: 13px !important;
+                height: 13px !important;
+                background: #ffffff !important;
+                box-shadow: 0 0 8px rgba(255, 255, 255, 0.9), 0 1px 3px rgba(0,0,0,0.5) !important;
+                border-radius: 50% !important;
+            }
+            /* 6. 设置高透毛玻璃抽屉面板 (含二级倍速) */
+            .art-video-player .art-settings,
+            .art-video-player .art-setting-panel {
+                background: rgba(18, 22, 32, 0.88) !important;
+                backdrop-filter: blur(28px) saturate(210%) !important;
+                -webkit-backdrop-filter: blur(28px) saturate(210%) !important;
+                border: 1px solid rgba(255, 255, 255, 0.18) !important;
+                border-radius: 20px !important;
+                box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), inset 0 1px 1.5px rgba(255, 255, 255, 0.25) !important;
+                bottom: calc(100% + 14px) !important;
+                padding: 6px !important;
+                overflow: hidden !important;
+            }
+            .art-video-player .art-setting-item {
+                border-radius: 12px !important;
+                transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+                padding: 8px 12px !important;
+                color: rgba(255, 255, 255, 0.9) !important;
+            }
+            .art-video-player .art-setting-item:hover {
+                background: rgba(255, 255, 255, 0.14) !important;
+            }
+            /* 7. 控制按钮微交互反馈 */
+            .art-video-player .art-control {
+                border-radius: 12px !important;
+                transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            }
+            .art-video-player .art-control:hover {
+                background: rgba(255, 255, 255, 0.18) !important;
+                transform: translateY(-1px) scale(1.05) !important;
             }
 
             /* 加载中动画 */
