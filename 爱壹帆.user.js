@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.8.6
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（彻底剥离爱壹帆原生-01-免费等业务标签、规范统一播放器左上角标题显示格式为【XXX - 第N集】、严格限定主标题提取范围排除侧栏推荐误伤、支持爱壹帆原生两段式分集URL路径匹配、多节点全域标题深度解析、参考555电影优化未全屏出窗立退与全屏120px宽幅热区感应），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.8.7
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（精准屏蔽主页大图轮播背景视频与非播放页面的换源按钮、彻底剥离爱壹帆原生-01-免费等业务标签、规范统一播放器左上角标题显示格式为【XXX - 第N集】、严格限定主标题提取范围排除侧栏推荐误伤、支持爱壹帆原生两段式分集URL路径匹配、多节点全域标题深度解析、参考555电影优化未全屏出窗立退与全屏120px宽幅热区感应），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -433,7 +433,28 @@
         return list.filter(k => k.length >= 2);
     }
 
+    function isPlayPage() {
+        const path = (location.pathname || '').toLowerCase();
+        // 显式主页、频道聚合页、榜单页、搜索页一律排除
+        if (path === '/' || path === '' || path === '/home' || path === '/index' || path === '/index.html') {
+            return false;
+        }
+        if (/^\/(list|type|category|search|rank|user|vip|app|history|short)/i.test(path)) {
+            return false;
+        }
+        // 明确的播放页路径标识
+        if (path.includes('/play') || path.includes('/watch') || path.includes('/video/') || path.includes('/v/')) {
+            return true;
+        }
+        // 结构兜底：有选集列表或播放器核心容器
+        if (document.querySelector('.player-media-list, .detail-info, .video-detail, .aa-videoplayer-wrap')) {
+            return true;
+        }
+        return false;
+    }
+
     function detectVideoInfoFromDOM() {
+        if (!isPlayPage()) return;
         // 保留接口可能已先行截获的集数信息，绝不盲目清空
         let detectedEp = currentEpisodeNum || '';
 
@@ -1002,11 +1023,18 @@
     }
 
     // =========================================================================
-    // 4. 定位爱壹帆视频播放容器 (getBoundingClientRect 准确定位)
+    // 4. 定位爱壹帆视频播放容器 (getBoundingClientRect 准确定位，排除首页轮播预告背景)
     // =========================================================================
     function findVideoContainer() {
+        if (!isPlayPage()) return null;
+
         const video = document.querySelector('video:not(.artplayer-video):not(.yfsp-custom-video)');
         if (!video) return null;
+
+        // 坚决排除首页轮播大图/预告片/背景视频
+        if (video.closest('.banner, .carousel, .slide, .hero, .swiper, .top-recommend, .home-banner, .slider, [class*="banner"], [class*="swiper"], [class*="carousel"]')) {
+            return null;
+        }
 
         // 尝试寻找带有播放器特征的容器
         let container = video.closest('.publicplay, .video-player, .aa-videoplayer-wrap, .video-box');
@@ -1037,6 +1065,15 @@
     // 5. UI 注入与交互处理
     // =========================================================================
     function injectUI() {
+        // 主页或非播放页坚决不展示换源按钮与播放遮罩，若有残留立即清理
+        if (!isPlayPage()) {
+            const toolbar = document.getElementById('yfsp-hd-toolbar');
+            if (toolbar) toolbar.remove();
+            const overlay = document.getElementById('yfsp-hd-overlay');
+            if (overlay) overlay.remove();
+            return;
+        }
+
         const container = findVideoContainer();
         if (!container) return;
 
@@ -1961,6 +1998,14 @@
     let lastEp = '';
 
     function scheduleRefresh() {
+        if (!isPlayPage()) {
+            if (isHdActive) deactivateHdPlayer();
+            const toolbar = document.getElementById('yfsp-hd-toolbar');
+            if (toolbar) toolbar.remove();
+            const overlay = document.getElementById('yfsp-hd-overlay');
+            if (overlay) overlay.remove();
+            return;
+        }
         detectVideoInfoFromDOM();
         injectUI();
         if (isHdActive && !isMovieMode && currentEpisodeNum && currentEpisodeNum !== lastEp) {
@@ -1979,10 +2024,24 @@
             currentEpisodeNum = '';
             isMovieMode = false;
             lastEp = '';
+            if (!isPlayPage()) {
+                if (isHdActive) deactivateHdPlayer();
+                const toolbar = document.getElementById('yfsp-hd-toolbar');
+                if (toolbar) toolbar.remove();
+                const overlay = document.getElementById('yfsp-hd-overlay');
+                if (overlay) overlay.remove();
+            }
             setTimeout(scheduleRefresh, 600);
         }
-        detectVideoInfoFromDOM();
-        injectUI();
+        if (isPlayPage()) {
+            detectVideoInfoFromDOM();
+            injectUI();
+        } else {
+            const toolbar = document.getElementById('yfsp-hd-toolbar');
+            if (toolbar) toolbar.remove();
+            const overlay = document.getElementById('yfsp-hd-overlay');
+            if (overlay) overlay.remove();
+        }
 
         // 辅助检测：绝对保护右侧 UP 主卡片与关注按钮，严禁误伤
         function isAuthorOrEssential(el) {
