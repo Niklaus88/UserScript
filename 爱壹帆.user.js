@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.9.4
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（非电影类连载节目专属全新重磅上线【上一集/下一集】无缝秒切功能，严格锁定控制栏排版为【上一集⏮】->【播放▶】->【下一集⏭】->【音量🔊】->【时间戳】、采用方案A内嵌无刷新平滑切流保持全屏不被打断并静默同步地址栏与页面选集高亮、首集与末集智能半透明置灰防呆、视频播放完毕或片尾跳过自动连播下一集、精准收敛设置抽屉面板宽度至精致紧凑比例消除空旷感、彻底消除Artplayer默认居中导致的图标文字参差不齐Bug实现设置项图标与文字绝对左对齐、精准修复设置抽屉菜单右侧箭头图标变形切角与左侧矢量图标实心填充Bug、精准隔离控制按钮样式彻底修复时间戳与进度条重叠挤压Bug、精修控制按钮悬停微圆环光效消除过大长方形高晕、柔和收敛进度条选中微动动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.9.5
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（彻底修复上一集/下一集切换期间旧视频背景声音泄露与加载层覆盖导致播放器失联卡死Bug、非电影类连载节目专属全新重磅上线【上一集/下一集】无缝秒切功能，严格锁定控制栏排版为【上一集⏮】->【播放▶】->【下一集⏭】->【音量🔊】->【时间戳】、采用方案A内嵌无刷新平滑切流保持全屏不被打断并静默同步地址栏与页面选集高亮、首集与末集智能半透明置灰防呆、视频播放完毕或片尾跳过自动连播下一集、精准收敛设置抽屉面板宽度至精致紧凑比例消除空旷感、彻底消除Artplayer默认居中导致的图标文字参差不齐Bug实现设置项图标与文字绝对左对齐、精准修复设置抽屉菜单右侧箭头图标变形切角与左侧矢量图标实心填充Bug、精准隔离控制按钮样式彻底修复时间戳与进度条重叠挤压Bug、精修控制按钮悬停微圆环光效消除过大长方形高晕、柔和收敛进度条选中微动动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -38,7 +38,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.9.4) - 剧集精准定位自愈、单片与多集双模适配就绪`);
+    console.log(`${TAG} 脚本已启动 (v2.9.5) - 剧集精准定位自愈、单片与多集双模适配就绪`);
 
     // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
     try {
@@ -1482,6 +1482,22 @@
         if (isNaN(targetEp) || targetEp < 1) return;
 
         console.log(`${TAG} 正在切换至第 ${targetEp} 集...`);
+
+        // 立即硬暂停旧视频与旧音频，坚决消除换集期间的旧声音泄露
+        if (artInstance) {
+            try {
+                artInstance.pause();
+                if (artInstance.video) {
+                    artInstance.video.pause();
+                    artInstance.video.muted = true; // 强制静音，杜绝残响
+                }
+                if (artInstance.loading) {
+                    artInstance.loading.show = true;
+                }
+                artInstance.notice.show = `正在载入第 ${targetEp} 集...`;
+            } catch (e) {}
+        }
+
         currentEpisodeNum = String(targetEp);
         lastProgressTime = 0;
         hasSkippedOpening = false;
@@ -1655,10 +1671,17 @@
         const container = document.getElementById('yfsp-artplayer-container');
         if (!container) return;
 
-        // 方案 A 核心：如果播放器实例已存在，无刷新平滑秒切流（全屏观影不被打断，进度归零）
-        if (artInstance && artInstance.video) {
+        // 方案 A 核心：如果播放器实例已存在且完整挂载于页面，无刷新平滑秒切流（全屏观影不被打断，进度归零）
+        const isArtInDom = container.querySelector('.art-video-player');
+        if (artInstance && artInstance.video && isArtInDom) {
             artInstance.notice.show = `正在载入第 ${currentEpisodeNum} 集...`;
+            if (artInstance.video) {
+                artInstance.video.muted = false; // 恢复有声播放
+            }
             artInstance.switchUrl(m3u8Url).then(() => {
+                if (artInstance.loading) {
+                    artInstance.loading.show = false;
+                }
                 artInstance.play();
                 updatePrevNextButtons();
                 const skipOpening = parseInt(GM_getValue('yfsp_skip_opening', 0), 10) || 0;
@@ -2174,9 +2197,24 @@
         });
     }
 
-    // 辅助界面：加载中状态
+    // 辅助界面：加载中状态 (当播放器已就绪挂载时绝不破坏现有 DOM，使用 Artplayer 原生 notice 与 loading 浮层)
     function showLoading(msg) {
         const container = document.getElementById('yfsp-artplayer-container');
+        const isArtInDom = container && container.querySelector('.art-video-player');
+        if (artInstance && artInstance.video && isArtInDom) {
+            try {
+                artInstance.pause();
+                if (artInstance.video) {
+                    artInstance.video.pause();
+                    artInstance.video.muted = true;
+                }
+                artInstance.notice.show = msg;
+                if (artInstance.loading) {
+                    artInstance.loading.show = true;
+                }
+            } catch (e) {}
+            return;
+        }
         if (!container) return;
         container.innerHTML = `
             <div class="yfsp-hd-loading">
@@ -2188,6 +2226,10 @@
 
     // 辅助界面：未搜到片源时的手动搜索框
     function showErrorUI(msg, currentTitle) {
+        if (artInstance) {
+            try { artInstance.destroy(); } catch (e) {}
+            artInstance = null;
+        }
         const container = document.getElementById('yfsp-artplayer-container');
         if (!container) return;
         container.innerHTML = `
