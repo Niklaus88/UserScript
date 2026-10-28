@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.9.8
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（彻底重构双模式独立自愈响应系统实现窗口模式进窗即显移出立退与全屏模式触底140px宽幅热区毫秒级滑升双向完美自愈、彻底清除代码多余空格消除篡改猴所有黄色感叹号语法警告、精准修复首集状态下【上一集】与末集状态下【下一集】未呈现沉稳暗灰色的Bug、彻底杜绝全局按钮高特异性规则覆盖禁用态、支持DOM矢量填色与高优先级CSS双重灰阶着色、彻底修复上一集/下一集切换期间旧视频背景声音泄露与加载层覆盖导致播放器失联卡死Bug、非电影类连载节目专属全新重磅上线【上一集/下一集】无缝秒切功能，严格锁定控制栏排版为【上一集⏮】->【播放▶】->【下一集⏭】->【音量🔊】->【时间戳】、采用方案A内嵌无刷新平滑切流保持全屏不被打断并静默同步地址栏与页面选集高亮、首集与末集智能半透明置灰防呆、视频播放完毕或片尾跳过自动连播下一集、精准收敛设置抽屉面板宽度至精致紧凑比例消除空旷感、彻底消除Artplayer默认居中导致的图标文字参差不齐Bug实现设置项图标与文字绝对左对齐、精准修复设置抽屉菜单右侧箭头图标变形切角与左侧矢量图标实心填充Bug、精准隔离控制按钮样式彻底修复时间戳与进度条重叠挤压Bug、精修控制按钮悬停微圆环光效消除过大长方形高晕、柔和收敛进度条选中微动动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.9.9
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，重磅引入低端影视官方主站 (DDYS.app) 专属极速【亚太线路 (1080P/原画)】并保持Top 2黄金起播高优先级、同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（彻底重构双模式独立自愈响应系统实现窗口模式进窗即显移出立退与全屏模式触底140px宽幅热区毫秒级滑升双向完美自愈、彻底清除代码多余空格消除篡改猴所有黄色感叹号语法警告、精准修复首集状态下【上一集】与末集状态下【下一集】未呈现沉稳暗灰色的Bug、彻底杜绝全局按钮高特异性规则覆盖禁用态、支持DOM矢量填色与高优先级CSS双重灰阶着色、彻底修复上一集/下一集切换期间旧视频背景声音泄露与加载层覆盖导致播放器失联卡死Bug、非电影类连载节目专属全新重磅上线【上一集/下一集】无缝秒切功能，严格锁定控制栏排版为【上一集⏮】->【播放▶】->【下一集⏭】->【音量🔊】->【时间戳】、采用方案A内嵌无刷新平滑切流保持全屏不被打断并静默同步地址栏与页面选集高亮、首集与末集智能半透明置灰防呆、视频播放完毕或片尾跳过自动连播下一集、精准收敛设置抽屉面板宽度至精致紧凑比例消除空旷感、彻底消除Artplayer默认居中导致的图标文字参差不齐Bug实现设置项图标与文字绝对左对齐、精准修复设置抽屉菜单右侧箭头图标变形切角与左侧矢量图标实心填充Bug、精准隔离控制按钮样式彻底修复时间戳与进度条重叠挤压Bug、精修控制按钮悬停微圆环光效消除过大长方形高晕、柔和收敛进度条选中微动动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -12,9 +12,14 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_webRequest
 // @connect      555k06.com
 // @connect      55dy60.com
 // @connect      555dy.net
+// @connect      ddys.app
+// @connect      *.ddys.app
+// @connect      v2.ddys.app
+// @connect      v3.ddys.app
 // @connect      ddys.io
 // @connect      ddys.one
 // @connect      xluuss.com
@@ -38,7 +43,18 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.9.8) - 双模式底栏自愈响应重构与感叹号告警彻底消除`);
+    console.log(`${TAG} 脚本已启动 (v2.9.9) - 低端影视官方极速亚太线路 (DDYS.app) 接入`);
+
+    // 自动重写 DDYS 官方直链防盗链 Referer 请求头（保障亚太节点极速播放）
+    if (typeof GM_webRequest !== 'undefined') {
+        try {
+            GM_webRequest([
+                { selector: '*://*.ddys.app/*', action: { redirect: { headers: { 'Referer': 'https://ddys.app/' } } } }
+            ], function () {});
+        } catch (e) {
+            console.warn(`${TAG} GM_webRequest 规则注册异常:`, e);
+        }
+    }
 
     // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
     try {
@@ -568,6 +584,7 @@
     // 3. 第三方影视源检索：555电影专属集群 + 低端影视专属1080P/新浪极清 + 官方独立切片源
     // =========================================================================
     function getRefererForUrl(url) {
+        if (url.includes('ddys.app')) return 'https://ddys.app/';
         if (url.includes('ddys.one')) return 'https://ddys.one/';
         if (url.includes('ddys.io')) return 'https://ddys.io/';
         return 'https://555k06.com/';
@@ -752,6 +769,124 @@
         }
     }
 
+    // 核心：深度解析低端影视官方主站 (DDYS.app) 专属极速「亚太线路 (1080P/原画)」
+    async function searchDDYSAppLine(keywords, targetTitle) {
+        const host = 'https://ddys.app';
+        let postPath = null;
+        let matchedTitle = '';
+        let bestScore = 0;
+
+        for (const kw of keywords) {
+            try {
+                const searchHtml = await requestText(`${host}/?s=${encodeURIComponent(kw)}&post_type=post`, {
+                    'Referer': 'https://ddys.app/'
+                });
+                if (!searchHtml) continue;
+                if (searchHtml.includes('ddys-protect-gate') || searchHtml.includes('ddys-protect-panel')) {
+                    console.log(`${TAG} [DDYS.app] 检测到官方门禁验证，跳过主站直接检索`);
+                    return null;
+                }
+
+                const aRegex = /<a\s+[^>]*href="(?:https?:\/\/ddys\.app)?(\/[a-zA-Z0-9_\-\.]+\/)"[^>]*rel="bookmark"[^>]*>([\s\S]*?)<\/a>/gi;
+                let m;
+                while ((m = aRegex.exec(searchHtml)) !== null) {
+                    const link = m[1];
+                    if (/^\/(category|tag|author|page|member|search)\//i.test(link)) continue;
+                    const title = m[2].replace(/<[^>]+>/g, '').trim();
+                    const score = calculateMatchScore(title, targetTitle || kw, kw);
+                    if (score > bestScore) {
+                        bestScore = score;
+                        postPath = link;
+                        matchedTitle = title;
+                        if (bestScore === 100) break;
+                    }
+                }
+                if (bestScore === 100) break;
+            } catch (e) {}
+        }
+
+        if (!postPath || bestScore < 50) return null;
+        console.log(`${TAG} DDYS.app官方精准打分匹配: ${matchedTitle} (${postPath}), 得分=${bestScore}`);
+
+        try {
+            const detailHtml = await requestText(`${host}${postPath}`, {
+                'Referer': 'https://ddys.app/'
+            });
+            if (!detailHtml || detailHtml.includes('ddys-protect-gate')) return null;
+
+            const jsonMatch = detailHtml.match(/<script class="ddys-playlist-data" type="application\/json">([\s\S]*?)<\/script>/i);
+            if (!jsonMatch) {
+                console.log(`${TAG} DDYS.app《${matchedTitle}》未包含播放列表 JSON 数据`);
+                return null;
+            }
+
+            const playlistData = JSON.parse(jsonMatch[1]);
+            const seasons = playlistData.seasons || [];
+            if (!seasons.length) return null;
+
+            // 智能季数匹配：若影片有多个季，优先匹配目标季（例如第2季）
+            let targetSeasonObj = null;
+            if (seasons.length > 1 && targetTitle) {
+                const sMatch = targetTitle.match(/第\s*([一二三四五六七八九十\d]+)\s*[季部]|Season\s*(\d+)/i);
+                if (sMatch) {
+                    const cnMap = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10 };
+                    const rawS = sMatch[1] || sMatch[2];
+                    const targetSNum = cnMap[rawS] || parseInt(rawS, 10);
+                    if (targetSNum) {
+                        targetSeasonObj = seasons.find(s => s.season === targetSNum || (s.title && s.title.includes(String(targetSNum))));
+                    }
+                }
+            }
+
+            const activeSeasons = targetSeasonObj ? [targetSeasonObj] : seasons;
+            const eps = [];
+
+            for (const s of activeSeasons) {
+                const tracks = s.tracks || [];
+                for (let i = 0; i < tracks.length; i++) {
+                    const t = tracks[i];
+                    // 优先锁定用户指定的亚太线路 (v2)，若无则备用美国线路 (v3) 或默认源
+                    const streamUrl = (t.nodeSources && (t.nodeSources.v2 || t.nodeSources.v3)) || t.src || '';
+                    if (!streamUrl) continue;
+
+                    const rawTitle = t.title ? t.title.trim() : '';
+                    let num = t.episode ? String(t.episode) : '';
+                    if (!num) {
+                        const numMatch = rawTitle.match(/\d+/);
+                        num = numMatch ? String(parseInt(numMatch[0], 10)) : String(eps.length + 1);
+                    }
+
+                    eps.push({
+                        title: rawTitle || `第${num}集`,
+                        num: num,
+                        url: streamUrl
+                    });
+                }
+            }
+
+            if (eps.length === 0) return null;
+
+            eps.sort((a, b) => {
+                const na = parseInt(a.num, 10);
+                const nb = parseInt(b.num, 10);
+                if (!isNaN(na) && !isNaN(nb)) return na - nb;
+                return 0;
+            });
+
+            return {
+                sourceId: 'ddys_app_v2',
+                sourceName: 'DDYS·亚太线路 (官方极速)',
+                is555: false,
+                isDDYSApp: true,
+                vodName: matchedTitle,
+                episodes: eps
+            };
+        } catch (err) {
+            console.warn(`${TAG} DDYS.app官方详情解析异常:`, err);
+            return null;
+        }
+    }
+
     // 核心：深度解析低端影视 (DDYS) 专属极清「播放源 2 (1080P)」
     async function searchDDYSLine(keywords, targetTitle) {
         const host = 'https://ddys.io';
@@ -930,9 +1065,10 @@
 
         const matchedSources = [];
 
-        // 1. 并发请求 555 电影专属集群、低端影视 DDYS.io、低端影视 DDrk (DDYS.one)
-        const [res555, resDDYS, resDDYSOne] = await Promise.allSettled([
+        // 1. 并发请求 555 电影专属集群、低端影视官方 DDYS.app、低端影视 DDYS.io、低端影视 DDrk (DDYS.one)
+        const [res555, resDDYSApp, resDDYS, resDDYSOne] = await Promise.allSettled([
             search555Lines(keywords, title),
+            searchDDYSAppLine(keywords, title),
             searchDDYSLine(keywords, title),
             searchDDYSOneLine(keywords, title)
         ]);
@@ -940,6 +1076,11 @@
         if (res555.status === 'fulfilled' && Array.isArray(res555.value) && res555.value.length > 0) {
             matchedSources.push(...res555.value);
             console.log(`${TAG} 成功载入 555 电影专属线路: ${res555.value.length} 条`);
+        }
+
+        if (resDDYSApp.status === 'fulfilled' && resDDYSApp.value) {
+            matchedSources.push(resDDYSApp.value);
+            console.log(`${TAG} 成功载入低端影视官方主站专属线路: ${resDDYSApp.value.sourceName} (${resDDYSApp.value.episodes.length} 集)`);
         }
 
         if (resDDYS.status === 'fulfilled' && resDDYS.value) {
@@ -1318,18 +1459,20 @@
             // 2. 线路特定品质权重（用户定制优先级）：
             if (name.includes('极速蓝光-r') || name.includes('-r')) {
                 weight += 100; // Top 1: 555·极速蓝光-R（默认首选起播线路）
+            } else if (name.includes('亚太线路') || (source.sourceId && source.sourceId === 'ddys_app_v2')) {
+                weight += 90; // Top 2: DDYS·亚太线路 (官方极速1080P/原画画质，延迟极低)
             } else if (name.includes('极速蓝光-b') || name.includes('-b')) {
-                weight += 80; // Top 2: 555·极速蓝光-b（默认第二搜索备选源）
+                weight += 80; // Top 3: 555·极速蓝光-b（默认第二搜索备选源）
             } else if (name.includes('极速蓝光-js') || name.includes('-js')) {
-                weight += 60; // Top 3: 555·极速蓝光-js
+                weight += 60; // Top 4: 555·极速蓝光-js
             } else if (name.includes('极速蓝光')) {
-                weight += 50; // Top 4: 555·极速蓝光通用系列（-f, -s等）
+                weight += 50; // Top 5: 555·极速蓝光通用系列（-f, -s等）
             } else if (name.includes('高清蓝光') || name.includes('高清')) {
-                weight += 40; // Top 5: 555·高清蓝光（降至极速系列之后）
+                weight += 40; // Top 6: 555·高清蓝光（降至极速系列之后）
             } else if (source.sourceId && source.sourceId.includes('ddys')) {
-                weight += 30; // Top 6: 低端影视 DDYS 专属1080P
+                weight += 30; // Top 7: 低端影视 DDYS 其他备用节点
             } else {
-                weight += 10; // Top 7: 其他第三方独立采集源
+                weight += 10; // Top 8: 其他第三方独立采集源
             }
 
             return weight;
@@ -1678,10 +1821,12 @@
         renderPlayer(matchedEp.url);
     }
 
-    // 渲染播放器 (Artplayer 优先，原生 Hls 自动兜底，进度无缝承接，支持平滑换集不退出全屏)
+    // 渲染播放器 (Artplayer 优先，原生 Hls/MP4 自动兜底，进度无缝承接，支持平滑换集不退出全屏)
     function renderPlayer(m3u8Url) {
         const container = document.getElementById('yfsp-artplayer-container');
         if (!container) return;
+
+        const isMp4 = m3u8Url.includes('.mp4') || (!m3u8Url.includes('.m3u8') && !m3u8Url.includes('m3u8'));
 
         // 方案 A 核心：如果播放器实例已存在且完整挂载于页面，无刷新平滑秒切流（全屏观影不被打断，进度归零）
         const isArtInDom = container.querySelector('.art-video-player');
@@ -1690,7 +1835,7 @@
             if (artInstance.video) {
                 artInstance.video.muted = false; // 恢复有声播放
             }
-            artInstance.switchUrl(m3u8Url).then(() => {
+            artInstance.switchUrl(m3u8Url, isMp4 ? 'mp4' : 'm3u8').then(() => {
                 if (artInstance.loading) {
                     artInstance.loading.show = false;
                 }
@@ -1719,6 +1864,8 @@
             artInstance = null;
         }
         container.innerHTML = '';
+
+        const isMp4 = m3u8Url.includes('.mp4') || (!m3u8Url.includes('.m3u8') && !m3u8Url.includes('m3u8'));
 
         // 统一的高鲁棒性 Hls.js 抗失真引擎（全源继承：专攻贴片广告切片导致的音频采样率突变与海量伪断点干扰）
         const createTunedHls = () => {
@@ -1795,7 +1942,7 @@
                 artInstance = new Artplayer({
                     container: container,
                     url: m3u8Url,
-                    type: 'm3u8',
+                    type: isMp4 ? 'mp4' : 'm3u8',
                     customType: {
                         m3u8: function (video, url, art) {
                             lockAudioPitch(video);
@@ -1811,6 +1958,10 @@
                             } else {
                                 art.notice.show = '浏览器不支持播放该格式视频';
                             }
+                        },
+                        mp4: function (video, url, art) {
+                            lockAudioPitch(video);
+                            video.src = url;
                         }
                     },
                     theme: '#ffffff',
@@ -2184,7 +2335,7 @@
         }
 
         // 方式 2: 原生 HTML5 Video + Hls.js 坚固兜底
-        console.log(`${TAG} 使用原生 HTML5 Video + Hls 渲染`);
+        console.log(`${TAG} 使用原生 HTML5 Video + Hls/MP4 渲染`);
         const videoEl = document.createElement('video');
         videoEl.className = 'yfsp-custom-video';
         videoEl.controls = true;
@@ -2195,7 +2346,7 @@
         lockAudioPitch(videoEl);
         container.appendChild(videoEl);
 
-        const fallbackHls = createTunedHls();
+        const fallbackHls = !isMp4 ? createTunedHls() : null;
         if (fallbackHls) {
             fallbackHls.loadSource(m3u8Url);
             fallbackHls.attachMedia(videoEl);
