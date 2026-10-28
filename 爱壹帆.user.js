@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.8.7
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（精准屏蔽主页大图轮播背景视频与非播放页面的换源按钮、彻底剥离爱壹帆原生-01-免费等业务标签、规范统一播放器左上角标题显示格式为【XXX - 第N集】、严格限定主标题提取范围排除侧栏推荐误伤、支持爱壹帆原生两段式分集URL路径匹配、多节点全域标题深度解析、参考555电影优化未全屏出窗立退与全屏120px宽幅热区感应），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.8.8
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、彻底剥离爱壹帆原生-01-免费等业务标签、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -579,7 +579,7 @@
                 GM_xmlhttpRequest({
                     method: 'GET',
                     url: url,
-                    timeout: 7000,
+                    timeout: 3500, // 优化为 3.5 秒快速熔断（原 7000），极大减少换源等待
                     headers: Object.assign({
                         'Referer': getRefererForUrl(url),
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
@@ -600,7 +600,7 @@
                 GM_xmlhttpRequest({
                     method: 'GET',
                     url: url,
-                    timeout: 7000,
+                    timeout: 3500, // 优化为 3.5 秒快速熔断（原 7000）
                     onload: res => {
                         try {
                             resolve(JSON.parse(res.responseText));
@@ -642,7 +642,7 @@
                         'Range': 'bytes=0-100',
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                     },
-                    timeout: 2000,
+                    timeout: 1500, // 探针优化为 1.5 秒
                     onload: res => {
                         const ct = (res.responseHeaders || '').toLowerCase();
                         const isHtml = ct.includes('content-type: text/html');
@@ -930,42 +930,37 @@
 
         const matchedSources = [];
 
-        // 1. 优先拉取 555 电影的专属高速线路集群 (多达 6~10 条全网高质量线路)
-        try {
-            const lines555 = await search555Lines(keywords, title);
-            if (lines555 && lines555.length > 0) {
-                matchedSources.push(...lines555);
-                console.log(`${TAG} 成功载入 555 电影专属线路: ${lines555.length} 条`);
-            }
-        } catch (e) {}
+        // 1. 并发请求 555 电影专属集群、低端影视 DDYS.io、低端影视 DDrk (DDYS.one)
+        const [res555, resDDYS, resDDYSOne] = await Promise.allSettled([
+            search555Lines(keywords, title),
+            searchDDYSLine(keywords, title),
+            searchDDYSOneLine(keywords, title)
+        ]);
 
-        // 2. 检索并接入低端影视 (DDYS.io) 专属「播放源 2 (1080P)」
-        try {
-            const ddysLine = await searchDDYSLine(keywords, title);
-            if (ddysLine) {
-                matchedSources.push(ddysLine);
-                console.log(`${TAG} 成功载入低端影视专属线路: ${ddysLine.sourceName} (${ddysLine.episodes.length} 集)`);
-            }
-        } catch (e) {}
+        if (res555.status === 'fulfilled' && Array.isArray(res555.value) && res555.value.length > 0) {
+            matchedSources.push(...res555.value);
+            console.log(`${TAG} 成功载入 555 电影专属线路: ${res555.value.length} 条`);
+        }
 
-        // 3. 检索并接入低端影视 DDrk (DDYS.one) 专属「X节点 (新浪1080P)」
-        try {
-            const ddysOneLine = await searchDDYSOneLine(keywords, title);
-            if (ddysOneLine) {
-                matchedSources.push(ddysOneLine);
-                console.log(`${TAG} 成功载入低端影视DDrk专属线路: ${ddysOneLine.sourceName} (${ddysOneLine.episodes.length} 集)`);
-            }
-        } catch (e) {}
+        if (resDDYS.status === 'fulfilled' && resDDYS.value) {
+            matchedSources.push(resDDYS.value);
+            console.log(`${TAG} 成功载入低端影视专属线路: ${resDDYS.value.sourceName} (${resDDYS.value.episodes.length} 集)`);
+        }
 
-        // 4. 同时检索官方独立采集站直连线路作为多重容灾保障
-        for (const kw of keywords) {
-            for (const src of SOURCES) {
-                // 如果该独立源已添加，跳过
-                if (matchedSources.some(s => s.sourceId === src.id)) continue;
+        if (resDDYSOne.status === 'fulfilled' && resDDYSOne.value) {
+            matchedSources.push(resDDYSOne.value);
+            console.log(`${TAG} 成功载入低端影视DDrk专属线路: ${resDDYSOne.value.sourceName} (${resDDYSOne.value.episodes.length} 集)`);
+        }
 
+        // 2. 极速快反熔断：若 555 或 DDYS 已成功检索到高品质线路，直接结束检索（通常仅耗时 0.8~1.8 秒）
+        // 只有当 555/DDYS 未搜到或结果为空时，才启用第三方备用采集源并发检索
+        if (matchedSources.length === 0) {
+            console.log(`${TAG} 专属蓝光库未命中，启用第三方备用采集源并发检索...`);
+            const kw = keywords[0] || title;
+            const cmsTasks = SOURCES.map(async src => {
                 try {
                     const data = await requestApi(src.api + encodeURIComponent(kw));
-                    if (!data || !data.list || !data.list.length) continue;
+                    if (!data || !data.list || !data.list.length) return null;
 
                     let bestVod = null;
                     let bestScore = 0;
@@ -978,10 +973,8 @@
                         }
                     }
 
-                    if (!bestVod || bestScore < 50) continue;
+                    if (!bestVod || bestScore < 50 || !bestVod.vod_play_url) return null;
                     const matchedVod = bestVod;
-
-                    if (!matchedVod || !matchedVod.vod_play_url) continue;
 
                     const groups = matchedVod.vod_play_url.split('$$$');
                     const parsedPlaylists = [];
@@ -1007,15 +1000,24 @@
 
                     if (parsedPlaylists.length > 0) {
                         parsedPlaylists.sort((a, b) => b.length - a.length);
-                        matchedSources.push({
+                        return {
                             sourceId: src.id,
                             sourceName: src.name,
                             is555: false,
                             vodName: matchedVod.vod_name,
                             episodes: parsedPlaylists[0]
-                        });
+                        };
                     }
-                } catch (err) {}
+                } catch (err) {
+                    return null;
+                }
+            });
+
+            const cmsResults = await Promise.allSettled(cmsTasks);
+            for (const r of cmsResults) {
+                if (r.status === 'fulfilled' && r.value) {
+                    matchedSources.push(r.value);
+                }
             }
         }
 
@@ -1300,17 +1302,41 @@
 
         currentMatchedList = matchedSources;
 
-        // 智能优选排序：如果当前为动漫/连续剧，优先将切实收录了目标集数（如第17集）的线路置顶作为默认线路
-        const targetEp = (!isMovieMode && currentEpisodeNum) ? currentEpisodeNum : '';
-        if (targetEp) {
-            matchedSources.sort((a, b) => {
-                const aHas = a.episodes.some(e => e.num === targetEp || (e.title && e.title.includes(targetEp)));
-                const bHas = b.episodes.some(e => e.num === targetEp || (e.title && e.title.includes(targetEp)));
-                if (aHas && !bHas) return -1;
-                if (!aHas && bHas) return 1;
-                return 0;
-            });
+        // 核心评分模型：按【集数有效性 + 线路品质】重构优先级排序
+        // 确保 555·极速蓝光-R 永远作为 Top 1 默认首选，555·极速蓝光-b 作为 Top 2 备选
+        function getSourceWeight(source, ep) {
+            let weight = 0;
+            // 1. 目标集数有效性（若指定了集数，切实收录目标集的线路拥有 1000 分大权重门槛）
+            if (ep) {
+                const hasTargetEp = source.episodes && source.episodes.some(e => e.num === ep || (e.title && e.title.includes(ep)));
+                if (hasTargetEp) weight += 1000;
+            } else {
+                weight += 1000;
+            }
+
+            const name = (source.sourceName || '').toLowerCase();
+            // 2. 线路特定品质权重（用户定制优先级）：
+            if (name.includes('极速蓝光-r') || name.includes('-r')) {
+                weight += 100; // Top 1: 555·极速蓝光-R（默认首选起播线路）
+            } else if (name.includes('极速蓝光-b') || name.includes('-b')) {
+                weight += 80;  // Top 2: 555·极速蓝光-b（默认第二搜索备选源）
+            } else if (name.includes('极速蓝光-js') || name.includes('-js')) {
+                weight += 60;  // Top 3: 555·极速蓝光-js
+            } else if (name.includes('极速蓝光')) {
+                weight += 50;  // Top 4: 555·极速蓝光通用系列（-f, -s等）
+            } else if (name.includes('高清蓝光') || name.includes('高清')) {
+                weight += 40;  // Top 5: 555·高清蓝光（降至极速系列之后）
+            } else if (source.sourceId && source.sourceId.includes('ddys')) {
+                weight += 30;  // Top 6: 低端影视 DDYS 专属1080P
+            } else {
+                weight += 10;  // Top 7: 其他第三方独立采集源
+            }
+
+            return weight;
         }
+
+        const targetEp = (!isMovieMode && currentEpisodeNum) ? currentEpisodeNum : '';
+        matchedSources.sort((a, b) => getSourceWeight(b, targetEp) - getSourceWeight(a, targetEp));
 
         selectedSourceIndex = 0;
 
