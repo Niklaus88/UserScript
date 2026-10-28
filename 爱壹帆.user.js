@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.9.2
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（精准修复设置抽屉菜单右侧箭头图标变形切角与左侧矢量图标实心填充Bug、精准隔离控制按钮样式彻底修复时间戳与进度条重叠挤压Bug、精修控制按钮悬停微圆环光效消除过大长方形高晕、柔和收敛进度条选中微动动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.9.3
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（精准收敛设置抽屉面板宽度至精致紧凑比例消除空旷感、彻底消除Artplayer默认居中导致的图标文字参差不齐Bug实现设置项图标与文字绝对左对齐、精准修复设置抽屉菜单右侧箭头图标变形切角与左侧矢量图标实心填充Bug、精准隔离控制按钮样式彻底修复时间戳与进度条重叠挤压Bug、精修控制按钮悬停微圆环光效消除过大长方形高晕、柔和收敛进度条选中微动动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -38,7 +38,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.9.2) - 剧集精准定位自愈、单片与多集双模适配就绪`);
+    console.log(`${TAG} 脚本已启动 (v2.9.3) - 剧集精准定位自愈、单片与多集双模适配就绪`);
 
     // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
     try {
@@ -1640,7 +1640,7 @@
                     settings: [
                         {
                             icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14l4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/><circle cx="12" cy="14" r="2"/></svg>',
-                            width: 220,
+                            width: 184,
                             html: '倍速',
                             tooltip: '1.0×',
                             selector: [
@@ -1658,7 +1658,7 @@
                         },
                         {
                             icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="5" x2="3" y2="19"/><polygon points="8 5 15 12 8 19 8 5"/><polygon points="14 5 21 12 14 19 14 5"/></svg>',
-                            width: 220,
+                            width: 184,
                             html: '跳过片头',
                             tooltip: GM_getValue('yfsp_skip_opening', 0) ? `${GM_getValue('yfsp_skip_opening', 0)}秒` : '关闭',
                             selector: [
@@ -1675,7 +1675,7 @@
                         },
                         {
                             icon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 5 10 12 3 19 3 5"/><polygon points="9 5 16 12 9 19 9 5"/><line x1="18" y1="5" x2="18" y2="19"/><line x1="21" y1="5" x2="21" y2="19"/></svg>',
-                            width: 220,
+                            width: 184,
                             html: '跳过片尾',
                             tooltip: GM_getValue('yfsp_skip_ending', 0) ? `${GM_getValue('yfsp_skip_ending', 0)}秒` : '关闭',
                             selector: [
@@ -2728,17 +2728,17 @@
                 font-size: 11px !important;
                 font-family: ui-monospace, SFMono-Regular, monospace !important;
             }
-            /* 6. 设置高透毛玻璃抽屉面板 (正确定位于右下角齿轮上方) */
+            /* 6. 设置高透毛玻璃抽屉面板 (正确定位于右下角齿轮上方，精致紧凑比例，绝对对齐排版) */
             .art-video-player .art-settings {
                 position: absolute !important;
                 top: auto !important;
                 bottom: 72px !important;
                 right: 20px !important;
                 left: auto !important;
-                width: 236px !important;
+                width: 184px !important;
                 max-height: 380px !important;
-                border-radius: 20px !important;
-                background: rgba(18, 22, 32, 0.90) !important;
+                border-radius: 18px !important;
+                background: rgba(18, 22, 32, 0.92) !important;
                 backdrop-filter: blur(28px) saturate(210%) !important;
                 -webkit-backdrop-filter: blur(28px) saturate(210%) !important;
                 border: 1px solid rgba(255, 255, 255, 0.18) !important;
@@ -2755,39 +2755,48 @@
                 padding: 0 !important;
                 margin: 0 !important;
             }
-            .art-video-player .art-setting-item {
+            .art-video-player .art-settings .art-setting-item {
                 border-radius: 12px !important;
                 transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-                padding: 8px 12px !important;
+                padding: 8px 10px !important;
                 color: rgba(255, 255, 255, 0.9) !important;
                 display: flex !important;
                 align-items: center !important;
                 justify-content: space-between !important;
                 box-sizing: border-box !important;
+                cursor: pointer !important;
             }
-            .art-video-player .art-setting-item:hover {
+            .art-video-player .art-settings .art-setting-item:hover {
                 background: rgba(255, 255, 255, 0.14) !important;
             }
-            /* 左侧功能项专属矢量线框图标（排除返回上一级按钮中的原生箭头） */
-            .art-video-player .art-settings .art-setting-item:not(.art-setting-item-back) .art-setting-item-left {
+            /* 左侧功能项专属：彻底重置为严格靠左对齐（强力覆盖 Artplayer 默认的 justify-content: center），彻底消除各功能因字数不同导致的错落下沉参差不齐 */
+            .art-video-player .art-settings .art-setting-item .art-setting-item-left {
                 display: flex !important;
                 align-items: center !important;
+                justify-content: flex-start !important;
                 gap: 8px !important;
                 flex: 1 !important;
                 min-width: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                text-align: left !important;
             }
-            .art-video-player .art-settings .art-setting-item:not(.art-setting-item-back) .art-setting-item-left-icon {
+            /* 图标容器：固定 20px 宽度、严格居中图标，确保每行文字拥有完全一致的水平起始基准线 */
+            .art-video-player .art-settings .art-setting-item .art-setting-item-left-icon {
                 width: 20px !important;
+                min-width: 20px !important;
                 height: 20px !important;
                 display: inline-flex !important;
                 align-items: center !important;
                 justify-content: center !important;
-                margin-right: 4px !important;
+                margin: 0 !important;
+                padding: 0 !important;
                 flex-shrink: 0 !important;
             }
-            .art-video-player .art-settings .art-setting-item:not(.art-setting-item-back) .art-setting-item-left-icon svg {
-                width: 18px !important;
-                height: 18px !important;
+            /* 主菜单自定义功能项 SVG 图标（倍速、跳过片头、跳过片尾）：空心线性质感 */
+            .art-video-player .art-settings .art-setting-item:not(.art-setting-item-back) .art-setting-item-left-icon > svg {
+                width: 17px !important;
+                height: 17px !important;
                 display: block !important;
                 fill: none !important;
                 stroke: #ffffff !important;
@@ -2796,7 +2805,7 @@
                 stroke-linejoin: round !important;
                 opacity: 0.9 !important;
             }
-            .art-video-player .art-settings .art-setting-item:not(.art-setting-item-back) .art-setting-item-left-icon svg * {
+            .art-video-player .art-settings .art-setting-item:not(.art-setting-item-back) .art-setting-item-left-icon > svg * {
                 fill: none !important;
                 stroke: #ffffff !important;
             }
@@ -2805,27 +2814,45 @@
                 font-weight: 500 !important;
                 color: rgba(255, 255, 255, 0.92) !important;
                 white-space: nowrap !important;
+                letter-spacing: 0.2px !important;
             }
-            /* 右侧指示区与箭头：防止被切角、去除错误描边、保持自然平滑显示 */
-            .art-video-player .art-settings .art-setting-item-right {
+            /* 子菜单选项对勾（选中的倍速等）：保留占位与严格左对齐 */
+            .art-video-player .art-settings .art-setting-item .art-icon-check {
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                width: 18px !important;
+                height: 18px !important;
+            }
+            .art-video-player .art-settings .art-setting-item .art-icon-check svg {
+                width: 14px !important;
+                height: 14px !important;
+                display: block !important;
+                fill: #ffffff !important;
+                stroke: none !important;
+            }
+            /* 右侧数值指示与向右箭头：严格靠右对齐 */
+            .art-video-player .art-settings .art-setting-item .art-setting-item-right {
                 display: flex !important;
                 align-items: center !important;
-                gap: 4px !important;
+                justify-content: flex-end !important;
+                gap: 2px !important;
                 margin-left: auto !important;
                 flex-shrink: 0 !important;
             }
             .art-video-player .art-settings .art-setting-item-right-tooltip {
                 font-size: 12px !important;
                 color: rgba(255, 255, 255, 0.62) !important;
+                white-space: nowrap !important;
                 margin-right: 2px !important;
             }
             .art-video-player .art-settings .art-setting-item-right-icon {
                 display: inline-flex !important;
                 align-items: center !important;
                 justify-content: center !important;
-                width: 20px !important;
-                min-width: 20px !important;
-                height: 20px !important;
+                width: 16px !important;
+                min-width: 16px !important;
+                height: 16px !important;
                 margin: 0 !important;
                 padding: 0 !important;
                 overflow: visible !important;
@@ -2841,13 +2868,13 @@
                 opacity: 0.65 !important;
                 transition: opacity 0.2s ease !important;
             }
-            .art-video-player .art-setting-item:hover .art-setting-item-right-icon .art-icon {
+            .art-video-player .art-settings .art-setting-item:hover .art-setting-item-right-icon .art-icon {
                 opacity: 0.95 !important;
             }
             .art-video-player .art-settings .art-setting-item-right-icon svg,
             .art-video-player .art-settings .art-setting-item-back .art-setting-item-left-icon svg {
-                width: 20px !important;
-                height: 20px !important;
+                width: 18px !important;
+                height: 18px !important;
                 display: block !important;
                 fill: #ffffff !important;
                 stroke: none !important;
