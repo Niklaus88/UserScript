@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.8.4
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（彻底修复电视剧/动漫分集集数定位与识别机制、支持爱壹帆原生两段式分集URL路径匹配、多节点全域标题深度解析、完美兼容单片电影与多集影视、参考555电影优化未全屏出窗立退与全屏120px宽幅热区感应），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.8.5
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（严格限定主标题提取范围排除侧边栏推荐误伤、彻底修复分集集数定位与单片电影自愈机制、支持爱壹帆原生两段式分集URL路径匹配、多节点全域标题深度解析、参考555电影优化未全屏出窗立退与全屏120px宽幅热区感应），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -262,28 +262,29 @@
     // 2. 剧名与集数精准提取算法 + 关键词泛化生成
     // =========================================================================
     function parseTitleAndEp(raw) {
-        if (!raw) return { title: '', ep: '1' };
+        if (!raw) return { title: '', ep: '' };
         let text = raw
             .replace(/-\s*爱壹帆.*/i, '')
             .replace(/_爱壹帆.*/i, '')
             .replace(/在线观看.*/i, '')
             .replace(/HD|BD|4K|1080P/gi, '')
             .replace(/[\[\(【（].*?[\]\)】）]/g, '')
+            .replace(/[《》]/g, '')
             .trim();
 
         let ep = '';
-        // 模式 1: "第xx集 / 第xx话 / 第xx期"
-        const m1 = text.match(/第\s*(\d+)\s*[集话期]/);
+        // 模式 1: "第xx集 / 第xx话 / 第xx期 / EPxx / Epxx"
+        const m1 = text.match(/(?:第\s*(\d+)\s*[集话期]|EP\s*(\d+))/i);
         if (m1) {
-            ep = m1[1];
-            text = text.replace(/第\s*\d+\s*[集话期].*/, '').trim();
+            ep = m1[1] || m1[2];
+            text = text.replace(/(?:第\s*\d+\s*[集话期]|EP\s*\d+).*/i, '').trim();
         } else {
-            // 模式 2: 末尾空格加数字，如 "沧元图 01"、"凡人修仙传 196"（排除 1900-2099 年份）
-            const m2 = text.match(/(?:^|\s+|_)(\d{1,4})$/);
+            // 模式 2: 末尾空格或下划线加数字，如 "嫁金钗 01"、"仙逆 154"（排除 1900-2099 年份）
+            const m2 = text.match(/(?:^|\s+|_)0*(\d{1,4})$/);
             if (m2) {
                 const numVal = parseInt(m2[1], 10);
                 if (!(numVal >= 1900 && numVal <= 2099)) {
-                    ep = m2[1];
+                    ep = String(numVal);
                     text = text.replace(/(?:^|\s+|_)\d{1,4}$/, '').trim();
                 }
             }
@@ -348,6 +349,7 @@
             .replace(/在线观看.*/i, '')
             .replace(/HD|BD|4K|1080P/gi, '')
             .replace(/[\[\(【（].*?[\]\)】）]/g, '')
+            .replace(/[《》]/g, '')
             .replace(/第\s*\d+\s*[集话期].*/, '')
             .replace(/(?:^|\s+|_)0*\d{1,4}$/, '')
             .replace(/[\s\-:_—·：]+$/, '')
@@ -415,16 +417,42 @@
         // 保留接口可能已先行截获的集数信息，绝不盲目清空
         let detectedEp = currentEpisodeNum || '';
 
-        // 1. 全域标题多节点扫描（确保捕获类似 "小城良方 04"、"仙逆 第154集" 的完整片名与集数）
-        const titleNodes = document.querySelectorAll('.video-title, h1, .video-name, .n-media-title, .title, .video-info-title, [class*="video-title"]');
+        // 1. 优先提取当前页面原生标题
+        // document.title 具有天然的页面隔离性，绝对不会被右侧边栏“相关推荐”或“猜你喜欢”卡片所污染
         let rawTitle = '';
-        for (const node of titleNodes) {
-            const txt = (node.textContent || '').trim();
-            if (txt && (!rawTitle || txt.length > rawTitle.length)) {
-                rawTitle = txt;
+        const docParsed = parseTitleAndEp(document.title);
+        if (docParsed.title) {
+            rawTitle = docParsed.title;
+            if (docParsed.ep && !detectedEp) {
+                detectedEp = docParsed.ep;
             }
         }
-        if (!rawTitle) rawTitle = document.title;
+
+        // 2. 局部受限扫描：若 document.title 未获取到有效片名，仅在播放器核心详情区域查找
+        // 坚决排除任何侧边栏、推荐位、热播榜、以及全局 header 导航条内的标题元素
+        if (!rawTitle || rawTitle.length < 2) {
+            const candidateSelectors = [
+                '.video-detail h1',
+                '.detail-info h1',
+                '.video-info h1',
+                '.player-container .video-name',
+                '.media-info h1',
+                'h1.video-title',
+                'h1.title'
+            ];
+            for (const sel of candidateSelectors) {
+                const el = document.querySelector(sel);
+                if (el) {
+                    if (!el.closest('.sidebar, .aside, .recommend, .related, .recommend-box, .related-box, [class*="recommend"], [class*="related"], [class*="sidebar"], [class*="rank"], [class*="hot"], header, nav, .header, .nav')) {
+                        const txt = (el.textContent || '').trim();
+                        if (txt) {
+                            rawTitle = txt;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
 
         const parsed = parseTitleAndEp(rawTitle);
         if (parsed.title) currentVideoTitle = parsed.title;
@@ -432,16 +460,16 @@
             detectedEp = parsed.ep;
         }
 
-        // 2. 从爱壹帆播放列表/选集按钮抓取当前激活的高亮集数
+        // 3. 从爱壹帆播放列表/选集按钮抓取当前激活的高亮集数
         const activeEp = document.querySelector('.player-media-list .active, .episode-item.active, .ep-item.active, .anthology-item.active, .series-item.active, [class*="episode"].active, [class*="ep-item"].active');
         if (activeEp && activeEp.textContent) {
-            const m = activeEp.textContent.match(/第?\s*(\d+)\s*[集话期]?/);
+            const m = activeEp.textContent.match(/(?:第\s*)?(\d+)\s*[集话期]?/);
             if (m) {
                 detectedEp = String(parseInt(m[1], 10));
             }
         }
 
-        // 3. 从 URL 中智能提取集数（严密区分：电影单段ID vs 电视剧两段/多段分集路径）
+        // 4. 从 URL 中智能提取集数（严密区分：电影单段ID vs 电视剧两段/多段分集路径）
         if (!detectedEp) {
             // 路径规则 1: 爱壹帆原生分集两段式路径，如 /play/801071/4 或 /play/801071/4.html
             const pathTwoSegments = location.href.match(/\/play\/\d+\/(\d+)(?:\.html)?(?:$|[?#])/i) || location.href.match(/\/\d+\/(\d+)(?:\.html)?(?:$|[?#])/);
@@ -457,28 +485,41 @@
             }
         }
 
-        // 4. 检查多集连载特征与电影标签
+        // 5. 检查多集连载特征与电影标签
         const pageText = document.body ? document.body.innerText : '';
-        const hasSeriesText = /更新[到至]\s*\d+\s*[集话期]|共\s*\d+\s*[集话期]|\d+\s*集全/.test(pageText);
-        const epList = document.querySelectorAll('.player-media-list a, .episode-item, .ep-item, .anthology-item, .series-item, [class*="episode-item"], [class*="ep-item"]');
+        const hasSeriesText = /更新[到至]\s*\d+\s*[集话期]|共\s*\d+\s*[集话期]|\d+\s*集全|连载中|分集剧情/.test(pageText);
+        const epButtons = Array.from(document.querySelectorAll(
+            '.player-media-list a, .episode-item, .ep-item, .anthology-item, .series-item, [class*="episode-item"], [class*="ep-item"]'
+        )).filter(el => !el.closest('.recommend, .related, .sidebar, .aside, [class*="recommend"], [class*="related"]'));
 
-        const hasMovieTag = Array.from(document.querySelectorAll('.tag, .genre, .breadcrumb, .video-tag, .info-item, .info-tags span, .label, a[href*="movie"], .detail-info-item')).some(el => {
+        // 严格限定在主影视信息区域内查找“电影”标签（绝不扫描全局 header 导航条或侧栏推荐）
+        const mainInfoContainer = document.querySelector('.detail-info, .video-detail, .media-info, .video-info, .player-container') || document.body;
+        const hasMovieTag = Array.from(mainInfoContainer.querySelectorAll('.tag, .genre, .breadcrumb, .video-tag, .info-item, .info-tags span, .label, .detail-info-item')).some(el => {
+            if (el.closest('header, nav, .header, .nav, .sidebar, .aside, .recommend, .related, [class*="recommend"], [class*="related"]')) {
+                return false;
+            }
             const txt = (el.textContent || '').trim();
-            return txt === '电影' || txt.includes('电影');
+            return txt === '电影' || txt === '微电影' || txt === '网络电影';
         });
 
-        // 5. 电视剧/动漫/综艺多集模式 vs 电影单片模式精准收敛
-        // 判定标准：只要有具体集数、页面有“更新到/共xx集/xx集全”、或者选集列表按钮 >= 2，且无电影标签，一律锁定为多集模式
-        const isDefinitelySeries = !!detectedEp || hasSeriesText || (epList && epList.length >= 2);
+        // 6. 电视剧/动漫/综艺多集模式 vs 电影单片模式精准收敛
+        // 判定标准：只要有具体集数、页面有“更新到/共xx集/xx集全”、或者选集列表按钮 >= 2，必定为多集连载剧集！
+        const isDefinitelySeries = !!detectedEp || hasSeriesText || (epButtons && epButtons.length >= 2);
 
-        if (isDefinitelySeries && !hasMovieTag) {
+        if (isDefinitelySeries) {
             isMovieMode = false;
-            // 确为剧集，若因各种原因仍未拿到具体集数，才兜底为第 1 集
             currentEpisodeNum = detectedEp || '1';
-        } else {
-            // 纯单片电影模式：绝不生成集数
+        } else if (hasMovieTag) {
             isMovieMode = true;
             currentEpisodeNum = '';
+        } else {
+            if (detectedEp) {
+                isMovieMode = false;
+                currentEpisodeNum = detectedEp;
+            } else {
+                isMovieMode = true;
+                currentEpisodeNum = '';
+            }
         }
     }
 
@@ -1905,6 +1946,7 @@
         }
         if (location.href !== lastUrl) {
             lastUrl = location.href;
+            currentVideoTitle = '';
             currentEpisodeNum = '';
             isMovieMode = false;
             lastEp = '';
