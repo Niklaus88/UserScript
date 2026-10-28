@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.9.3
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（精准收敛设置抽屉面板宽度至精致紧凑比例消除空旷感、彻底消除Artplayer默认居中导致的图标文字参差不齐Bug实现设置项图标与文字绝对左对齐、精准修复设置抽屉菜单右侧箭头图标变形切角与左侧矢量图标实心填充Bug、精准隔离控制按钮样式彻底修复时间戳与进度条重叠挤压Bug、精修控制按钮悬停微圆环光效消除过大长方形高晕、柔和收敛进度条选中微动动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.9.4
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（非电影类连载节目专属全新重磅上线【上一集/下一集】无缝秒切功能，严格锁定控制栏排版为【上一集⏮】->【播放▶】->【下一集⏭】->【音量🔊】->【时间戳】、采用方案A内嵌无刷新平滑切流保持全屏不被打断并静默同步地址栏与页面选集高亮、首集与末集智能半透明置灰防呆、视频播放完毕或片尾跳过自动连播下一集、精准收敛设置抽屉面板宽度至精致紧凑比例消除空旷感、彻底消除Artplayer默认居中导致的图标文字参差不齐Bug实现设置项图标与文字绝对左对齐、精准修复设置抽屉菜单右侧箭头图标变形切角与左侧矢量图标实心填充Bug、精准隔离控制按钮样式彻底修复时间戳与进度条重叠挤压Bug、精修控制按钮悬停微圆环光效消除过大长方形高晕、柔和收敛进度条选中微动动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -38,7 +38,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.9.3) - 剧集精准定位自愈、单片与多集双模适配就绪`);
+    console.log(`${TAG} 脚本已启动 (v2.9.4) - 剧集精准定位自愈、单片与多集双模适配就绪`);
 
     // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
     try {
@@ -1381,6 +1381,122 @@
         playCurrentEpisodeInHd();
     }
 
+    // 状态与集数联动
+    let hasSkippedOpening = false;
+    let hasSkippedEnding = false;
+
+    // 同步爱壹帆原生页面选集状态与浏览器地址栏
+    function syncPageEpisodeState(targetEp) {
+        try {
+            const epButtons = Array.from(document.querySelectorAll(
+                '.player-media-list a, .episode-item, .ep-item, .anthology-item, .series-item, [class*="episode-item"], [class*="ep-item"]'
+            )).filter(el => !el.closest('.recommend, .related, .sidebar, .aside, [class*="recommend"], [class*="related"]'));
+
+            let matchedBtn = null;
+            for (const btn of epButtons) {
+                const txt = (btn.textContent || '').trim();
+                const m = txt.match(/(?:第\s*)?0*(\d{1,4})\s*(?:集|话|期)?/);
+                if (m && parseInt(m[1], 10) === targetEp) {
+                    matchedBtn = btn;
+                    break;
+                }
+            }
+
+            if (matchedBtn) {
+                epButtons.forEach(b => b.classList.remove('active'));
+                matchedBtn.classList.add('active');
+
+                if (matchedBtn.scrollIntoView) {
+                    matchedBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                }
+
+                const href = matchedBtn.getAttribute('href');
+                if (href && window.history && window.history.pushState) {
+                    const newUrl = new URL(href, location.href).href;
+                    if (newUrl !== location.href) {
+                        window.history.pushState(null, '', newUrl);
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn(`${TAG} 同步网页选集状态异常:`, e);
+        }
+    }
+
+    // 更新上一集/下一集按钮的置灰/启用状态与提示
+    function updatePrevNextButtons() {
+        if (isMovieMode || !artInstance) return;
+        const curEp = parseInt(currentEpisodeNum || '1', 10);
+        const isFirst = curEp <= 1;
+
+        // 计算当前节目最大总集数（综合多源与页面信息）
+        let maxTotalEp = 0;
+        if (currentMatchedList && currentMatchedList.length) {
+            currentMatchedList.forEach(s => {
+                if (s.episodes) {
+                    s.episodes.forEach(e => {
+                        const n = parseInt(e.num, 10);
+                        if (!isNaN(n)) maxTotalEp = Math.max(maxTotalEp, n);
+                    });
+                }
+            });
+        }
+        const epButtons = Array.from(document.querySelectorAll(
+            '.player-media-list a, .episode-item, .ep-item, .anthology-item, .series-item, [class*="episode-item"], [class*="ep-item"]'
+        )).filter(el => !el.closest('.recommend, .related, .sidebar, .aside, [class*="recommend"], [class*="related"]'));
+        epButtons.forEach(b => {
+            const m = (b.textContent || '').match(/(?:第\s*)?0*(\d{1,4})\s*(?:集|话|期)?/);
+            if (m) maxTotalEp = Math.max(maxTotalEp, parseInt(m[1], 10));
+        });
+
+        const isLast = maxTotalEp > 0 ? (curEp >= maxTotalEp) : false;
+
+        const prevBtn = document.querySelector('.art-control-prev-ep');
+        const nextBtn = document.querySelector('.art-control-next-ep');
+
+        if (prevBtn) {
+            if (isFirst) {
+                prevBtn.classList.add('art-control-disabled');
+                prevBtn.title = '已是第一集';
+            } else {
+                prevBtn.classList.remove('art-control-disabled');
+                prevBtn.title = `上一集 (第${curEp - 1}集)`;
+            }
+        }
+
+        if (nextBtn) {
+            if (isLast) {
+                nextBtn.classList.add('art-control-disabled');
+                nextBtn.title = '已是最新集';
+            } else {
+                nextBtn.classList.remove('art-control-disabled');
+                nextBtn.title = `下一集 (第${curEp + 1}集)`;
+            }
+        }
+    }
+
+    // 方案 A：平滑秒级换集起播 (全屏观影不打断，静默同步页面状态)
+    async function switchToEpisode(targetEpNum) {
+        if (isMovieMode) return;
+        const targetEp = parseInt(targetEpNum, 10);
+        if (isNaN(targetEp) || targetEp < 1) return;
+
+        console.log(`${TAG} 正在切换至第 ${targetEp} 集...`);
+        currentEpisodeNum = String(targetEp);
+        lastProgressTime = 0;
+        hasSkippedOpening = false;
+        hasSkippedEnding = false;
+
+        // 联动爱壹帆原生页面选集状态与浏览器地址栏
+        syncPageEpisodeState(targetEp);
+
+        // 调度播放器换集起播
+        await playCurrentEpisodeInHd();
+
+        // 更新按钮状态
+        updatePrevNextButtons();
+    }
+
     // 播放指定集数 (支持 555 线路即点即解与高速缓存)
     async function playCurrentEpisodeInHd() {
         if (!currentMatchedList || !currentMatchedList.length) return;
@@ -1522,14 +1638,46 @@
             }
         }
 
+        // 刷新右上角线路徽标
+        const sourceBtnName = document.getElementById('yfsp-hd-source-name');
+        if (sourceBtnName && currentSource) {
+            const curEp = currentEpisodeNum || '1';
+            const hasTarget = currentSource.episodes.some(e => e.num === curEp || (e.title && e.title.includes(curEp)));
+            const curBadge = isMovieMode ? '' : (hasTarget ? ` (含第${curEp}集)` : ` (仅至第${currentSource.episodes.length}集)`);
+            sourceBtnName.textContent = `${currentSource.sourceName}${curBadge}`;
+        }
+
         renderPlayer(matchedEp.url);
     }
 
-    // 渲染播放器 (Artplayer 优先，原生 Hls 自动兜底，进度无缝承接)
+    // 渲染播放器 (Artplayer 优先，原生 Hls 自动兜底，进度无缝承接，支持平滑换集不退出全屏)
     function renderPlayer(m3u8Url) {
         const container = document.getElementById('yfsp-artplayer-container');
         if (!container) return;
 
+        // 方案 A 核心：如果播放器实例已存在，无刷新平滑秒切流（全屏观影不被打断，进度归零）
+        if (artInstance && artInstance.video) {
+            artInstance.notice.show = `正在载入第 ${currentEpisodeNum} 集...`;
+            artInstance.switchUrl(m3u8Url).then(() => {
+                artInstance.play();
+                updatePrevNextButtons();
+                const skipOpening = parseInt(GM_getValue('yfsp_skip_opening', 0), 10) || 0;
+                if (skipOpening > 0) {
+                    artInstance.currentTime = skipOpening;
+                    artInstance.notice.show = `已为您自动跳过片头 ${skipOpening} 秒`;
+                }
+            }).catch(e => {
+                console.warn(`${TAG} switchUrl 平滑切流受阻，执行实例重建:`, e);
+                rebuildArtPlayer(container, m3u8Url);
+            });
+            return;
+        }
+
+        rebuildArtPlayer(container, m3u8Url);
+    }
+
+    // 全量构建/重建 ArtPlayer 实例
+    function rebuildArtPlayer(container, m3u8Url) {
         // 清理旧播放器
         if (artInstance) {
             try { artInstance.destroy(); } catch (e) {}
@@ -1696,7 +1844,33 @@
                     fullscreenWeb: false,
                     miniProgressBar: false,
                     playsInline: true,
-                    autoPlayback: true
+                    autoPlayback: true,
+                    controls: (!isMovieMode && currentEpisodeNum) ? [
+                        {
+                            name: 'prev-ep',
+                            position: 'left',
+                            index: 1,
+                            html: '<svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" fill="#ffffff"/></svg>',
+                            tooltip: '上一集',
+                            click: function () {
+                                const cur = parseInt(currentEpisodeNum || '1', 10);
+                                if (cur > 1) {
+                                    switchToEpisode(cur - 1);
+                                }
+                            }
+                        },
+                        {
+                            name: 'next-ep',
+                            position: 'left',
+                            index: 3,
+                            html: '<svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" fill="#ffffff"/></svg>',
+                            tooltip: '下一集',
+                            click: function () {
+                                const cur = parseInt(currentEpisodeNum || '1', 10);
+                                switchToEpisode(cur + 1);
+                            }
+                        }
+                    ] : []
                 });
 
                 // 进度无缝承接与双重静音保障
@@ -1710,11 +1884,10 @@
                         artInstance.currentTime = lastProgressTime;
                     }
                     muteAndPauseAllNativeVideos();
+                    updatePrevNextButtons();
                 });
 
                 // 自动化跳过片头与片尾
-                let hasSkippedOpening = false;
-                let hasSkippedEnding = false;
                 artInstance.on('video:timeupdate', () => {
                     const skipOpening = parseInt(GM_getValue('yfsp_skip_opening', 0), 10) || 0;
                     if (skipOpening > 0 && !hasSkippedOpening && artInstance.currentTime < skipOpening && artInstance.currentTime > 0) {
@@ -1726,11 +1899,14 @@
                     const skipEnding = parseInt(GM_getValue('yfsp_skip_ending', 0), 10) || 0;
                     if (skipEnding > 0 && !hasSkippedEnding && artInstance.duration > 0 && (artInstance.duration - artInstance.currentTime) <= skipEnding) {
                         hasSkippedEnding = true;
-                        artInstance.notice.show = `已到达片尾，自动准备下一集`;
-                        const nextBtn = document.querySelector('.art-icon-next, .video-player-next, .btn-next');
-                        if (nextBtn) {
-                            nextBtn.click();
+                        if (!isMovieMode && currentEpisodeNum) {
+                            const curEp = parseInt(currentEpisodeNum, 10);
+                            artInstance.notice.show = `已到达片尾，自动播放下一集...`;
+                            setTimeout(() => {
+                                switchToEpisode(curEp + 1);
+                            }, 800);
                         } else {
+                            artInstance.notice.show = '已到达片尾';
                             artInstance.currentTime = artInstance.duration - 0.5;
                         }
                     }
@@ -1887,6 +2063,13 @@
                 });
                 artInstance.on('video:ended', () => {
                     wakeControls();
+                    if (!isMovieMode && currentEpisodeNum) {
+                        const curEp = parseInt(currentEpisodeNum, 10);
+                        artInstance.notice.show = `本集播放完毕，自动播放下一集...`;
+                        setTimeout(() => {
+                            switchToEpisode(curEp + 1);
+                        }, 1200);
+                    }
                 });
 
                 // 设置菜单联动：展开菜单时保持常显，收起后恢复沉退逻辑；并主动为原生未设 viewBox 的箭头补齐属性防止矢量切角
@@ -2510,15 +2693,54 @@
                 display: contents !important;
                 overflow: visible !important;
             }
-            /* 2. 左侧区：播放、音量、时间紧凑排列 */
+            /* 2. 左侧区：上一集、播放、下一集、音量、时间紧凑排列 */
             .art-video-player .art-bottom .art-controls-left {
                 order: 1 !important;
                 display: flex !important;
                 align-items: center !important;
-                gap: 6px !important;
+                gap: 3px !important;
                 height: 100% !important;
                 flex-shrink: 0 !important;
                 overflow: visible !important;
+            }
+            /* 严格锁定左侧控制栏次序：[⏮ 上一集] -> [▶ 播放] -> [⏭ 下一集] -> [🔊 音量] -> [时间戳] */
+            .art-video-player .art-controls-left .art-control-prev-ep {
+                order: 1 !important;
+            }
+            .art-video-player .art-controls-left .art-control-playAndPause {
+                order: 2 !important;
+            }
+            .art-video-player .art-controls-left .art-control-next-ep {
+                order: 3 !important;
+            }
+            .art-video-player .art-controls-left .art-control-volume {
+                order: 4 !important;
+            }
+            .art-video-player .art-controls-left .art-control-time {
+                order: 5 !important;
+            }
+            /* 上一集与下一集按钮专属样式 */
+            .art-video-player .art-control-prev-ep,
+            .art-video-player .art-control-next-ep {
+                cursor: pointer !important;
+            }
+            .art-video-player .art-control-prev-ep svg,
+            .art-video-player .art-control-next-ep svg {
+                width: 18px !important;
+                height: 18px !important;
+                display: block !important;
+                fill: #ffffff !important;
+                stroke: none !important;
+                filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4)) !important;
+                transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            }
+            /* 禁用态（第一集的上一集、最后一集的下一集）：半透明置灰且不可点击 */
+            .art-video-player .art-control-prev-ep.art-control-disabled,
+            .art-video-player .art-control-next-ep.art-control-disabled {
+                opacity: 0.25 !important;
+                cursor: not-allowed !important;
+                pointer-events: none !important;
+                transform: none !important;
             }
             .art-video-player .art-control-time {
                 font-size: 11px !important;
