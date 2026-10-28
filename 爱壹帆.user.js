@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.9.9
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，重磅引入低端影视官方主站 (DDYS.app) 专属极速【亚太线路 (1080P/原画)】并保持Top 2黄金起播高优先级、同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（彻底重构双模式独立自愈响应系统实现窗口模式进窗即显移出立退与全屏模式触底140px宽幅热区毫秒级滑升双向完美自愈、彻底清除代码多余空格消除篡改猴所有黄色感叹号语法警告、精准修复首集状态下【上一集】与末集状态下【下一集】未呈现沉稳暗灰色的Bug、彻底杜绝全局按钮高特异性规则覆盖禁用态、支持DOM矢量填色与高优先级CSS双重灰阶着色、彻底修复上一集/下一集切换期间旧视频背景声音泄露与加载层覆盖导致播放器失联卡死Bug、非电影类连载节目专属全新重磅上线【上一集/下一集】无缝秒切功能，严格锁定控制栏排版为【上一集⏮】->【播放▶】->【下一集⏭】->【音量🔊】->【时间戳】、采用方案A内嵌无刷新平滑切流保持全屏不被打断并静默同步地址栏与页面选集高亮、首集与末集智能半透明置灰防呆、视频播放完毕或片尾跳过自动连播下一集、精准收敛设置抽屉面板宽度至精致紧凑比例消除空旷感、彻底消除Artplayer默认居中导致的图标文字参差不齐Bug实现设置项图标与文字绝对左对齐、精准修复设置抽屉菜单右侧箭头图标变形切角与左侧矢量图标实心填充Bug、精准隔离控制按钮样式彻底修复时间戳与进度条重叠挤压Bug、精修控制按钮悬停微圆环光效消除过大长方形高晕、柔和收敛进度条选中微动动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.9.10
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，彻底修复电影播放搜索时清晰度标签（如576P）被误识别为集数（第576集）导致找源失败的严重Bug（引入分辨率全量免疫过滤与电影类别绝对锁定）、精准确保非电影电视剧/动漫/综艺选集与连载集数不受任何影响、重磅引入低端影视官方主站 (DDYS.app) 专属极速【亚太线路 (1080P/原画)】并保持Top 2黄金起播高优先级、同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（彻底重构双模式独立自愈响应系统实现窗口模式进窗即显移出立退与全屏模式触底140px宽幅热区毫秒级滑升双向完美自愈、彻底清除代码多余空格消除篡改猴所有黄色感叹号语法警告、精准修复首集状态下【上一集】与末集状态下【下一集】未呈现沉稳暗灰色的Bug、彻底杜绝全局按钮高特异性规则覆盖禁用态、支持DOM矢量填色与高优先级CSS双重灰阶着色、彻底修复上一集/下一集切换期间旧视频背景声音泄露与加载层覆盖导致播放器失联卡死Bug、非电影类连载节目专属全新重磅上线【上一集/下一集】无缝秒切功能，严格锁定控制栏排版为【上一集⏮】->【播放▶】->【下一集⏭】->【音量🔊】->【时间戳】、采用方案A内嵌无刷新平滑切流保持全屏不被打断并静默同步地址栏与页面选集高亮、首集与末集智能半透明置灰防呆、视频播放完毕或片尾跳过自动连播下一集、精准收敛设置抽屉面板宽度至精致紧凑比例消除空旷感、彻底消除Artplayer默认居中导致的图标文字参差不齐Bug实现设置项图标与文字绝对左对齐、精准修复设置抽屉菜单右侧箭头图标变形切角与左侧矢量图标实心填充Bug、精准隔离控制按钮样式彻底修复时间戳与进度条重叠挤压Bug、精修控制按钮悬停微圆环光效消除过大长方形高晕、柔和收敛进度条选中微动动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -43,7 +43,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.9.9) - 低端影视官方极速亚太线路 (DDYS.app) 接入`);
+    console.log(`${TAG} 脚本已启动 (v2.9.10) - 彻底修复电影模式576P误转集数Bug并保障电视剧集数完整`);
 
     // 自动重写 DDYS 官方直链防盗链 Referer 请求头（保障亚太节点极速播放）
     if (typeof GM_webRequest !== 'undefined') {
@@ -95,18 +95,27 @@
         items.forEach(info => {
             if (!info || typeof info !== 'object') return;
 
-            // 识别是否为电影类别
-            if (info.typeName === '电影' || info.channelName === '电影' || info.columnName === '电影' || info.type === 'movie' || info.channel === 'movie') {
+            // 识别是否为电影类别（显式电影分类）
+            const isMovieCategory = (info.typeName === '电影' || info.channelName === '电影' || info.columnName === '电影' || info.type === 'movie' || info.channel === 'movie');
+            if (isMovieCategory) {
                 isMovieMode = true;
+                currentEpisodeNum = '';
             }
 
-            if (info.mediaTitle) {
-                // 彻底清洗清晰度与质量标签（杜绝将 576P / 720P / 1080P 误提取为第 576 集，同时剔除免费/VIP等干扰词）
+            if (info.mediaTitle && !isMovieCategory) {
+                // 彻底清洗清晰度与质量标签（坚决杜绝将 576P / 720P / 1080P 误提取为第 576 集，同时剔除免费/VIP等干扰词）
                 const cleanMediaTitle = String(info.mediaTitle)
-                    .replace(/\b\d{3,4}[pP]\b|\b[24]k\b|1080[pP]|720[pP]|576[pP]|480[pP]/gi, '')
+                    .replace(/\b\d{3,4}[pP]\b|\b[24]k\b|1080[pP]|720[pP]|576[pP]|480[pP]|360[pP]/gi, '')
                     .replace(/超清|高清|标清|蓝光|原画|正片|国语|粤语|英语|免费|VIP|超前点播|预告|付费/g, '')
                     .trim();
-                const epMatch = cleanMediaTitle.match(/第\s*(\d+)\s*[集话期]/) || cleanMediaTitle.match(/(?:^|[-_\s]+)0*(\d{1,4})(?:$|[-_\s]+)/);
+                const commonResolutions = [240, 360, 480, 576, 720, 1080, 1440, 2160];
+                let epMatch = cleanMediaTitle.match(/第\s*(\d+)\s*[集话期]/);
+                if (!epMatch) {
+                    const numM = cleanMediaTitle.match(/(?:^|[-_\s]+)0*(\d{1,4})(?:$|[-_\s]+)/);
+                    if (numM && !commonResolutions.includes(parseInt(numM[1], 10))) {
+                        epMatch = numM;
+                    }
+                }
                 if (epMatch) {
                     currentEpisodeNum = String(parseInt(epMatch[1], 10));
                     isMovieMode = false;
@@ -143,14 +152,16 @@
         if (!json || !json.data) return;
         const info = Array.isArray(json.data.info) && json.data.info[0] ? json.data.info[0] : json.data;
         if (info) {
-            if (info.typeName === '电影' || info.channelName === '电影' || info.columnName === '电影' || info.type === 'movie' || info.channel === 'movie') {
+            const isMovieCategory = (info.typeName === '电影' || info.channelName === '电影' || info.columnName === '电影' || info.type === 'movie' || info.channel === 'movie');
+            if (isMovieCategory) {
                 isMovieMode = true;
+                currentEpisodeNum = '';
             }
             if (info.title || info.name || info.videoName) {
                 const raw = info.title || info.name || info.videoName;
                 const parsed = parseTitleAndEp(raw);
                 if (parsed.title) currentVideoTitle = parsed.title;
-                if (parsed.ep) {
+                if (!isMovieCategory && parsed.ep) {
                     currentEpisodeNum = parsed.ep;
                     isMovieMode = false;
                 }
@@ -283,7 +294,8 @@
             .replace(/-\s*爱壹帆.*/i, '')
             .replace(/_爱壹帆.*/i, '')
             .replace(/在线观看.*/i, '')
-            .replace(/HD|BD|4K|1080P/gi, '')
+            .replace(/\b(?:240|360|480|576|720|1080|1440|2160|4320)[pP]\b|\b[24]k\b/gi, '')
+            .replace(/HD|BD|4K|1080P|720P|576P|480P|360P/gi, '')
             .replace(/[\[\(【（].*?[\]\)】）]/g, '')
             .replace(/[《》]/g, '')
             .trim();
@@ -306,20 +318,22 @@
             }
         }
 
-        // 模式 C: 纯尾部数字分集，如 "嫁金钗 01"、"仙逆 154"、"斗破苍穹-03"、"凡人修仙传_20"（排除 1900-2099 年份）
+        // 模式 C: 纯尾部数字分集，如 "嫁金钗 01"、"仙逆 154"、"斗破苍穹-03"、"凡人修仙传_20"（排除 1900-2099 年份与常见分辨率 240/360/480/576/720/1080）
         if (!ep) {
             const mC = text.match(/(?:^|[-_\s]+)0*(\d{1,4})$/);
             if (mC) {
                 const numVal = parseInt(mC[1], 10);
-                if (!(numVal >= 1900 && numVal <= 2099)) {
+                const commonResolutions = [240, 360, 480, 576, 720, 1080, 1440, 2160];
+                if (!(numVal >= 1900 && numVal <= 2099) && !commonResolutions.includes(numVal)) {
                     ep = String(numVal);
                     text = text.replace(/(?:^|[-_\s]+)\d{1,4}$/, '').trim();
                 }
             }
         }
 
-        // 清理尾部残留的业务标签与连接符，如 "抓娃娃-免费"、"抓娃娃-正片"、"嫁金钗-"
+        // 清理尾部残留的分辨率数值、业务标签与连接符，如 "Ali G: 我系水? - 576"、"抓娃娃-免费"
         text = text
+            .replace(/[-_\s]*(?:240|360|480|576|720|1080|1440|2160)$/, '')
             .replace(/[-_\s]*(?:免费|VIP|超前点播|预告|正片|付费|抢先|完整版|未删减)$/i, '')
             .replace(/[\s\-:_—·：]+$/, '')
             .trim();
@@ -538,7 +552,11 @@
 
             const urlEpMatch = pathTwoSegments || pathHyphenSegment || queryEp || pathExplicitEp;
             if (urlEpMatch) {
-                detectedEp = String(parseInt(urlEpMatch[1], 10));
+                const epNumVal = parseInt(urlEpMatch[1], 10);
+                const commonResolutions = [240, 360, 480, 576, 720, 1080, 1440, 2160];
+                if (!commonResolutions.includes(epNumVal)) {
+                    detectedEp = String(epNumVal);
+                }
             }
         }
 
@@ -560,23 +578,21 @@
         });
 
         // 6. 电视剧/动漫/综艺多集模式 vs 电影单片模式精准收敛
-        // 判定标准：只要有具体集数、页面有“更新到/共xx集/xx集全”、或者选集列表按钮 >= 2，必定为多集连载剧集！
-        const isDefinitelySeries = !!detectedEp || hasSeriesText || (epButtons && epButtons.length >= 2);
+        // 核心准则：若明确具备电影标签，或既无选集列表按钮且无连载字样，坚决收敛为电影单片模式！
+        // 只有当有 2 个以上选集按钮、页面有“更新至/全xx集”连载字样、或者标题/选集确实激活了“第X集”时，才属于连续剧
+        const isExplicitMultiEp = (epButtons && epButtons.length >= 2) || hasSeriesText || (activeEp && activeEp.textContent);
+        const hasExplicitEpWord = /(?:第\s*\d+\s*[集话期]|EP\s*\d+)/i.test(document.title) || /(?:第\s*\d+\s*[集话期]|EP\s*\d+)/i.test(rawTitle);
 
-        if (isDefinitelySeries) {
-            isMovieMode = false;
-            currentEpisodeNum = detectedEp || '1';
-        } else if (hasMovieTag) {
+        if (hasMovieTag && !isExplicitMultiEp) {
             isMovieMode = true;
             currentEpisodeNum = '';
+        } else if (isExplicitMultiEp || hasExplicitEpWord) {
+            isMovieMode = false;
+            currentEpisodeNum = detectedEp || '1';
         } else {
-            if (detectedEp) {
-                isMovieMode = false;
-                currentEpisodeNum = detectedEp;
-            } else {
-                isMovieMode = true;
-                currentEpisodeNum = '';
-            }
+            // 兜底：既无选集列表也无连载字样，无显式集数词，判定为电影单片
+            isMovieMode = true;
+            currentEpisodeNum = '';
         }
     }
 
