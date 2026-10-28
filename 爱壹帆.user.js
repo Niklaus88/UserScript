@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.7.7
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（自制毛玻璃换线下拉抽屉杜绝原生白框、解除底栏高度溢出裁剪彻底修复垂直音量调节胶囊与快进时间戳全显、全屏播放2.5秒无感自动隐藏底栏与指针），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.7.8
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（去除左上角多余线路名后缀保持纯净标题、自制毛玻璃换线下拉抽屉杜绝原生白框、解除底栏高度溢出裁剪彻底修复垂直音量调节胶囊与快进时间戳全显、全屏播放2.5秒无感自动隐藏底栏与指针），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -38,7 +38,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.7.7) - 自定义毛玻璃换线、音量修复与全屏无感隐藏就绪`);
+    console.log(`${TAG} 脚本已启动 (v2.7.8) - 纯净剧名标题、毛玻璃换线下拉抽屉与音量隐藏全自愈就绪`);
 
     // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
     try {
@@ -1304,9 +1304,9 @@
                 // 电影模式：若标题是“正片”或原片名，友好展示；若为“第1集”等上游模板字样则省略，保持纯净电影标题
                 const isGenericEp = /^(第\s*1\s*集|0?1)$/.test((matchedEp.title || '').trim());
                 const epSuffix = isGenericEp ? '' : ` - ${matchedEp.title}`;
-                titleText.textContent = `${currentVideoTitle}${epSuffix} [${currentSource.sourceName}]`;
+                titleText.textContent = `${currentVideoTitle}${epSuffix}`;
             } else {
-                titleText.textContent = `${currentVideoTitle} - ${matchedEp.title} [${currentSource.sourceName}]`;
+                titleText.textContent = `${currentVideoTitle} - ${matchedEp.title}`;
             }
         }
 
