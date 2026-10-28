@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.9.6
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（彻底修复全屏模式下鼠标触碰或划入底部140px宽幅热区无法呼出底栏Bug、全屏与窗口双模式动态多路事件捕获、彻底修复上一集/下一集切换期间旧视频背景声音泄露与加载层覆盖导致播放器失联卡死Bug、非电影类连载节目专属全新重磅上线【上一集/下一集】无缝秒切功能，严格锁定控制栏排版为【上一集⏮】->【播放▶】->【下一集⏭】->【音量🔊】->【时间戳】、采用方案A内嵌无刷新平滑切流保持全屏不被打断并静默同步地址栏与页面选集高亮、首集与末集智能半透明置灰防呆、视频播放完毕或片尾跳过自动连播下一集、精准收敛设置抽屉面板宽度至精致紧凑比例消除空旷感、彻底消除Artplayer默认居中导致的图标文字参差不齐Bug实现设置项图标与文字绝对左对齐、精准修复设置抽屉菜单右侧箭头图标变形切角与左侧矢量图标实心填充Bug、精准隔离控制按钮样式彻底修复时间戳与进度条重叠挤压Bug、精修控制按钮悬停微圆环光效消除过大长方形高晕、柔和收敛进度条选中微动动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.9.7
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（精准修复首集状态下【上一集】与末集状态下【下一集】未呈现沉稳暗灰色的Bug、彻底杜绝全局按钮高特异性规则覆盖禁用态、支持DOM矢量填色与高优先级CSS双重灰阶着色、彻底修复全屏模式下鼠标触碰或划入底部140px宽幅热区无法呼出底栏Bug、全屏与窗口双模式动态多路事件捕获、彻底修复上一集/下一集切换期间旧视频背景声音泄露与加载层覆盖导致播放器失联卡死Bug、非电影类连载节目专属全新重磅上线【上一集/下一集】无缝秒切功能，严格锁定控制栏排版为【上一集⏮】->【播放▶】->【下一集⏭】->【音量🔊】->【时间戳】、采用方案A内嵌无刷新平滑切流保持全屏不被打断并静默同步地址栏与页面选集高亮、首集与末集智能半透明置灰防呆、视频播放完毕或片尾跳过自动连播下一集、精准收敛设置抽屉面板宽度至精致紧凑比例消除空旷感、彻底消除Artplayer默认居中导致的图标文字参差不齐Bug实现设置项图标与文字绝对左对齐、精准修复设置抽屉菜单右侧箭头图标变形切角与左侧矢量图标实心填充Bug、精准隔离控制按钮样式彻底修复时间戳与进度条重叠挤压Bug、精修控制按钮悬停微圆环光效消除过大长方形高晕、柔和收敛进度条选中微动动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -38,7 +38,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.9.6) - 全屏底栏热区唤醒自愈与剧集秒切双模适配就绪`);
+    console.log(`${TAG} 脚本已启动 (v2.9.7) - 首尾集置灰视觉优化与全屏底栏唤醒就绪`);
 
     // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
     try {
@@ -1455,22 +1455,34 @@
         const nextBtn = document.querySelector('.art-control-next-ep');
 
         if (prevBtn) {
+            const svg = prevBtn.querySelector('svg');
+            const path = prevBtn.querySelector('path');
             if (isFirst) {
                 prevBtn.classList.add('art-control-disabled');
                 prevBtn.title = '已是第一集';
+                if (svg) svg.setAttribute('fill', '#737373');
+                if (path) path.setAttribute('fill', '#737373');
             } else {
                 prevBtn.classList.remove('art-control-disabled');
                 prevBtn.title = `上一集 (第${curEp - 1}集)`;
+                if (svg) svg.setAttribute('fill', '#ffffff');
+                if (path) path.setAttribute('fill', '#ffffff');
             }
         }
 
         if (nextBtn) {
+            const svg = nextBtn.querySelector('svg');
+            const path = nextBtn.querySelector('path');
             if (isLast) {
                 nextBtn.classList.add('art-control-disabled');
                 nextBtn.title = '已是最新集';
+                if (svg) svg.setAttribute('fill', '#737373');
+                if (path) path.setAttribute('fill', '#737373');
             } else {
                 nextBtn.classList.remove('art-control-disabled');
                 nextBtn.title = `下一集 (第${curEp + 1}集)`;
+                if (svg) svg.setAttribute('fill', '#ffffff');
+                if (path) path.setAttribute('fill', '#ffffff');
             }
         }
     }
@@ -1873,13 +1885,16 @@
                             name: 'prev-ep',
                             position: 'left',
                             index: 1,
-                            html: '<svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" fill="#ffffff"/></svg>',
-                            tooltip: '上一集',
+                            html: `<svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" fill="${parseInt(currentEpisodeNum || '1', 10) <= 1 ? '#737373' : '#ffffff'}"/></svg>`,
+                            tooltip: parseInt(currentEpisodeNum || '1', 10) <= 1 ? '已是第一集' : '上一集',
                             click: function () {
                                 const cur = parseInt(currentEpisodeNum || '1', 10);
-                                if (cur > 1) {
-                                    switchToEpisode(cur - 1);
+                                const prevBtn = document.querySelector('.art-control-prev-ep');
+                                if (cur <= 1 || (prevBtn && prevBtn.classList.contains('art-control-disabled'))) {
+                                    if (artInstance && artInstance.notice) artInstance.notice.show = '已是第一集';
+                                    return;
                                 }
+                                switchToEpisode(cur - 1);
                             }
                         },
                         {
@@ -1890,6 +1905,11 @@
                             tooltip: '下一集',
                             click: function () {
                                 const cur = parseInt(currentEpisodeNum || '1', 10);
+                                const nextBtn = document.querySelector('.art-control-next-ep');
+                                if (nextBtn && nextBtn.classList.contains('art-control-disabled')) {
+                                    if (artInstance && artInstance.notice) artInstance.notice.show = '已是最新集';
+                                    return;
+                                }
                                 switchToEpisode(cur + 1);
                             }
                         }
@@ -2167,7 +2187,11 @@
                     scheduleRetreat(600); 
                 });
 
-                // 初始化时呼出底栏并在 2.5 秒后无缝沉退
+                // 初始化时即刻同步首尾集置灰状态，呼出底栏并在 2.5 秒后无缝沉退
+                updatePrevNextButtons();
+                setTimeout(updatePrevNextButtons, 50);
+                setTimeout(updatePrevNextButtons, 200);
+                setTimeout(updatePrevNextButtons, 500);
                 wakeControls();
                 scheduleRetreat(2500);
                 return;
@@ -2821,13 +2845,28 @@
                 filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4)) !important;
                 transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
             }
-            /* 禁用态（第一集的上一集、最后一集的下一集）：半透明置灰且不可点击 */
-            .art-video-player .art-control-prev-ep.art-control-disabled,
-            .art-video-player .art-control-next-ep.art-control-disabled {
-                opacity: 0.25 !important;
+            /* 禁用态（第一集的上一集、最后一集的下一集）：真·沉稳暗灰阶 + 彻底禁用点击与悬停动画 */
+            .art-video-player .art-bottom .art-control.art-control-prev-ep.art-control-disabled,
+            .art-video-player .art-bottom .art-control.art-control-next-ep.art-control-disabled {
+                opacity: 0.35 !important;
                 cursor: not-allowed !important;
                 pointer-events: none !important;
                 transform: none !important;
+                background: transparent !important;
+            }
+            .art-video-player .art-bottom .art-control.art-control-prev-ep.art-control-disabled:hover,
+            .art-video-player .art-bottom .art-control.art-control-next-ep.art-control-disabled:hover {
+                opacity: 0.35 !important;
+                background: transparent !important;
+                transform: none !important;
+            }
+            .art-video-player .art-bottom .art-control.art-control-prev-ep.art-control-disabled svg,
+            .art-video-player .art-bottom .art-control.art-control-next-ep.art-control-disabled svg,
+            .art-video-player .art-bottom .art-control.art-control-prev-ep.art-control-disabled svg path,
+            .art-video-player .art-bottom .art-control.art-control-next-ep.art-control-disabled svg path {
+                fill: #737373 !important;
+                color: #737373 !important;
+                filter: none !important;
             }
             .art-video-player .art-control-time {
                 font-size: 11px !important;
@@ -3195,8 +3234,8 @@
                 margin-bottom: 4px !important;
                 padding-bottom: 8px !important;
             }
-            /* 7. 控制按钮微交互反馈（仅作用于可点击的图标按钮，坚决排除时间戳与进度条容器） */
-            .art-video-player .art-bottom .art-control:not(.art-control-progress):not(.art-control-time) {
+            /* 7. 控制按钮微交互反馈（仅作用于可点击的图标按钮，坚决排除时间戳、进度条容器与禁用按钮） */
+            .art-video-player .art-bottom .art-control:not(.art-control-progress):not(.art-control-time):not(.art-control-disabled) {
                 height: 32px !important;
                 width: 32px !important;
                 border-radius: 50% !important;
@@ -3209,7 +3248,7 @@
                 opacity: 0.88 !important;
                 transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
             }
-            .art-video-player .art-bottom .art-control:not(.art-control-progress):not(.art-control-time):hover {
+            .art-video-player .art-bottom .art-control:not(.art-control-progress):not(.art-control-time):not(.art-control-disabled):hover {
                 opacity: 1 !important;
                 background: rgba(255, 255, 255, 0.10) !important;
                 transform: scale(1.06) !important;
