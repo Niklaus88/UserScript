@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.8.0
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（支持纯边缘贴底即时呼出、0.35s iOS液体浮岛平滑滑升动效、离开底部区域0.6s无缝沉退收起、暂停常驻显示、鼠标悬停呼出垂直音量长胶囊带无缝桥接、自制毛玻璃换线下拉抽屉杜绝原生白框），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.8.1
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（全局捕获拦截修复键盘空格键精准控制暂停/播放杜绝滚屏、方向键快进快退音量控制、支持纯边缘贴底即时呼出、0.35s iOS液体浮岛平滑滑升动效、离开底部区域0.6s无缝沉退收起、暂停常驻显示、鼠标悬停呼出垂直音量长胶囊带无缝桥接、自制毛玻璃换线下拉抽屉杜绝原生白框），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -38,7 +38,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.8.0) - 贴底热区触碰即显、iOS液体浮岛平滑滑升与离开即退动效就绪`);
+    console.log(`${TAG} 脚本已启动 (v2.8.1) - 全局热键修复（空格键播控与方向键步进）、贴底热区即显与离开即退就绪`);
 
     // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
     try {
@@ -1079,6 +1079,63 @@
         }
     }, true);
 
+    // 全局热键捕获（优先拦截空格键播放/暂停，防止被原生页面吸收或页面滚动跳动）
+    window.addEventListener('keydown', (e) => {
+        if (!isHdActive) return;
+
+        // 避免在用户输入弹幕、搜索或评论时拦截
+        const activeEl = document.activeElement;
+        if (activeEl) {
+            const tag = (activeEl.tagName || '').toUpperCase();
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || activeEl.isContentEditable) {
+                return;
+            }
+        }
+
+        // 1. 空格键：控制播放与暂停
+        if (e.code === 'Space' || e.keyCode === 32) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (artInstance) {
+                artInstance.isFocus = true;
+                artInstance.toggle();
+            } else {
+                const customVideo = document.querySelector('.yfsp-custom-video');
+                if (customVideo) {
+                    if (customVideo.paused) {
+                        customVideo.play().catch(() => {});
+                    } else {
+                        customVideo.pause();
+                    }
+                }
+            }
+            return;
+        }
+
+        // 2. 方向键：左/右步进快退快进，上/下调节音量
+        if (artInstance) {
+            artInstance.isFocus = true;
+            if (e.code === 'ArrowLeft' || e.keyCode === 37) {
+                e.preventDefault();
+                e.stopPropagation();
+                artInstance.backward = 5;
+            } else if (e.code === 'ArrowRight' || e.keyCode === 39) {
+                e.preventDefault();
+                e.stopPropagation();
+                artInstance.forward = 5;
+            } else if (e.code === 'ArrowUp' || e.keyCode === 38) {
+                e.preventDefault();
+                e.stopPropagation();
+                artInstance.volume = Math.min(1, (artInstance.volume || 0) + 0.1);
+            } else if (e.code === 'ArrowDown' || e.keyCode === 40) {
+                e.preventDefault();
+                e.stopPropagation();
+                artInstance.volume = Math.max(0, (artInstance.volume || 0) - 0.1);
+            }
+        }
+    }, true);
+
     // 点击激活 1080P
     async function activateHdPlayer() {
         injectUI();
@@ -1479,13 +1536,14 @@
                     pip: true,
                     fullscreen: true,
                     fullscreenWeb: false,
-                    miniProgressBar: true,
+                    miniProgressBar: false,
                     playsInline: true,
                     autoPlayback: true
                 });
 
                 // 进度无缝承接与双重静音保障
                 artInstance.on('ready', () => {
+                    artInstance.isFocus = true;
                     if (artInstance.video) {
                         lockAudioPitch(artInstance.video);
                     }
