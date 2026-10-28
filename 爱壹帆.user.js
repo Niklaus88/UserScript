@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.8.5
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（严格限定主标题提取范围排除侧边栏推荐误伤、彻底修复分集集数定位与单片电影自愈机制、支持爱壹帆原生两段式分集URL路径匹配、多节点全域标题深度解析、参考555电影优化未全屏出窗立退与全屏120px宽幅热区感应），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.8.6
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（彻底剥离爱壹帆原生-01-免费等业务标签、规范统一播放器左上角标题显示格式为【XXX - 第N集】、严格限定主标题提取范围排除侧栏推荐误伤、支持爱壹帆原生两段式分集URL路径匹配、多节点全域标题深度解析、参考555电影优化未全屏出窗立退与全屏120px宽幅热区感应），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -85,12 +85,12 @@
             }
 
             if (info.mediaTitle) {
-                // 彻底清洗清晰度与质量标签（杜绝将 576P / 720P / 1080P 误提取为第 576 集）
+                // 彻底清洗清晰度与质量标签（杜绝将 576P / 720P / 1080P 误提取为第 576 集，同时剔除免费/VIP等干扰词）
                 const cleanMediaTitle = String(info.mediaTitle)
                     .replace(/\b\d{3,4}[pP]\b|\b[24]k\b|1080[pP]|720[pP]|576[pP]|480[pP]/gi, '')
-                    .replace(/超清|高清|标清|蓝光|原画|正片|国语|粤语|英语/g, '')
+                    .replace(/超清|高清|标清|蓝光|原画|正片|国语|粤语|英语|免费|VIP|超前点播|预告|付费/g, '')
                     .trim();
-                const epMatch = cleanMediaTitle.match(/第\s*(\d+)\s*[集话期]/) || cleanMediaTitle.match(/^\s*0*(\d{1,4})\s*$/);
+                const epMatch = cleanMediaTitle.match(/第\s*(\d+)\s*[集话期]/) || cleanMediaTitle.match(/(?:^|[-_\s]+)0*(\d{1,4})(?:$|[-_\s]+)/);
                 if (epMatch) {
                     currentEpisodeNum = String(parseInt(epMatch[1], 10));
                     isMovieMode = false;
@@ -273,25 +273,43 @@
             .trim();
 
         let ep = '';
-        // 模式 1: "第xx集 / 第xx话 / 第xx期 / EPxx / Epxx"
-        const m1 = text.match(/(?:第\s*(\d+)\s*[集话期]|EP\s*(\d+))/i);
-        if (m1) {
-            ep = m1[1] || m1[2];
-            text = text.replace(/(?:第\s*\d+\s*[集话期]|EP\s*\d+).*/i, '').trim();
-        } else {
-            // 模式 2: 末尾空格或下划线加数字，如 "嫁金钗 01"、"仙逆 154"（排除 1900-2099 年份）
-            const m2 = text.match(/(?:^|\s+|_)0*(\d{1,4})$/);
-            if (m2) {
-                const numVal = parseInt(m2[1], 10);
+
+        // 模式 A: 复合分集与业务标签，如 "嫁金钗-01-免费"、"替嫁医女-01-VIP"、"庆余年-05-超前点播"
+        const mA = text.match(/[-_\s]+0*(\d{1,4})[-_\s]*(?:免费|VIP|超前点播|预告|正片|付费|抢先|完整版|未删减)/i);
+        if (mA) {
+            ep = mA[1];
+            text = text.replace(/[-_\s]+0*\d{1,4}[-_\s]*(?:免费|VIP|超前点播|预告|正片|付费|抢先|完整版|未删减).*/i, '').trim();
+        }
+
+        // 模式 B: 标准带集字样，如 "第01集"、"第154集-免费"、"EP102"
+        if (!ep) {
+            const mB = text.match(/(?:第\s*(\d+)\s*[集话期]|EP\s*(\d+))/i);
+            if (mB) {
+                ep = mB[1] || mB[2];
+                text = text.replace(/(?:第\s*\d+\s*[集话期]|EP\s*\d+).*/i, '').trim();
+            }
+        }
+
+        // 模式 C: 纯尾部数字分集，如 "嫁金钗 01"、"仙逆 154"、"斗破苍穹-03"、"凡人修仙传_20"（排除 1900-2099 年份）
+        if (!ep) {
+            const mC = text.match(/(?:^|[-_\s]+)0*(\d{1,4})$/);
+            if (mC) {
+                const numVal = parseInt(mC[1], 10);
                 if (!(numVal >= 1900 && numVal <= 2099)) {
                     ep = String(numVal);
-                    text = text.replace(/(?:^|\s+|_)\d{1,4}$/, '').trim();
+                    text = text.replace(/(?:^|[-_\s]+)\d{1,4}$/, '').trim();
                 }
             }
         }
 
+        // 清理尾部残留的业务标签与连接符，如 "抓娃娃-免费"、"抓娃娃-正片"、"嫁金钗-"
+        text = text
+            .replace(/[-_\s]*(?:免费|VIP|超前点播|预告|正片|付费|抢先|完整版|未删减)$/i, '')
+            .replace(/[\s\-:_—·：]+$/, '')
+            .trim();
+
         return {
-            title: text.replace(/[\s\-:_—·：]+$/, '').trim(),
+            title: text,
             ep: ep ? String(parseInt(ep, 10)) : ''
         };
     }
@@ -350,8 +368,10 @@
             .replace(/HD|BD|4K|1080P/gi, '')
             .replace(/[\[\(【（].*?[\]\)】）]/g, '')
             .replace(/[《》]/g, '')
+            .replace(/[-_\s]+0*\d{1,4}[-_\s]*(?:免费|VIP|超前点播|预告|正片|付费|抢先|完整版|未删减).*/i, '')
             .replace(/第\s*\d+\s*[集话期].*/, '')
-            .replace(/(?:^|\s+|_)0*\d{1,4}$/, '')
+            .replace(/(?:^|[-_\s]+)0*\d{1,4}$/, '')
+            .replace(/[-_\s]*(?:免费|VIP|超前点播|预告|正片|付费|抢先|完整版|未删减)$/i, '')
             .replace(/[\s\-:_—·：]+$/, '')
             .trim();
 
@@ -1225,7 +1245,7 @@
         detectVideoInfoFromDOM();
         const title = currentVideoTitle || '当前影视';
         const hasEp = !isMovieMode && currentEpisodeNum;
-        const epDisplay = hasEp ? ` (第 ${currentEpisodeNum} 集)` : '';
+        const epDisplay = hasEp ? ` - 第${currentEpisodeNum}集` : '';
         const searchMsg = hasEp ? `第 ${currentEpisodeNum} 集` : '正片';
 
         const titleText = document.getElementById('yfsp-hd-title-text');
@@ -1426,7 +1446,16 @@
                 const epSuffix = isGenericEp ? '' : ` - ${matchedEp.title}`;
                 titleText.textContent = `${currentVideoTitle}${epSuffix}`;
             } else {
-                titleText.textContent = `${currentVideoTitle} - ${matchedEp.title}`;
+                // 电视剧/动漫/综艺连载模式：严格规范统一为 【XXX - 第N集】
+                let epLabel = matchedEp.title ? matchedEp.title.trim() : '';
+                const epNumMatch = epLabel.match(/(\d+)/);
+                if (epNumMatch) {
+                    const n = parseInt(epNumMatch[1], 10);
+                    epLabel = `第${n}集`;
+                } else if (currentEpisodeNum) {
+                    epLabel = `第${currentEpisodeNum}集`;
+                }
+                titleText.textContent = epLabel ? `${currentVideoTitle} - ${epLabel}` : currentVideoTitle;
             }
         }
 
