@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.7.2
-// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，一键切换极清画质，免除VIP限制，深度净网去广告，智能带集数精准搜索动漫/电视剧并自动优选收录目标集的线路（杜绝误跳第一集），全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
+// @version      2.7.3
+// @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，一键切换极清画质，免除VIP限制，深度净网去广告，精准多级季数泛化与卡片标题归一化打分匹配（彻底解决555因分词检索命中错误剧集漏掉蓝光线路），全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
 // @match        https://yfsp.tv/*
@@ -38,7 +38,7 @@
     const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const TAG = '[爱壹帆1080P换源]';
 
-    console.log(`${TAG} 脚本已启动 (v2.7.2) - 动漫电视剧带集数精准匹配与线路智能优选就绪`);
+    console.log(`${TAG} 脚本已启动 (v2.7.3) - 季数归一化与555卡片精准打分匹配就绪`);
 
     // 深度去广告：清理爱壹帆在本地存储中残留的广告横幅配置
     try {
@@ -292,6 +292,17 @@
         };
     }
 
+    // 核心季数与影视名称归一化（将 "第2季" <=> "第二季" <=> "2" 标准化，支撑精准跨源打分匹配）
+    function normalizeTitleForMatch(str) {
+        if (!str) return '';
+        const chineseNumMap = { '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6', '七': '7', '八': '8', '九': '9', '十': '10' };
+        return str
+            .replace(/第\s*([一二三四五六七八九十\d]+)\s*[季部]/g, (_, num) => chineseNumMap[num] || num)
+            .replace(/([一二三四五六七八九十])季/g, (_, num) => chineseNumMap[num] || num)
+            .replace(/[:：·\-_—\s]+/g, '')
+            .toLowerCase();
+    }
+
     function generateKeywords(raw) {
         if (!raw) return [];
         let text = raw
@@ -307,6 +318,34 @@
 
         const list = [];
         if (text) list.push(text);
+
+        const chineseNumMap = { '1': '一', '2': '二', '3': '三', '4': '四', '5': '五', '6': '六', '7': '七', '8': '八', '9': '九', '10': '十' };
+        const numToChineseMap = { '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6', '七': '7', '八': '8', '九': '9', '十': '10' };
+
+        // 多级季数衍生泛化（如 "第2季" <=> "2" <=> "第二季"）
+        const mSeasonNum = text.match(/第\s*(\d+)\s*[季部]/);
+        if (mSeasonNum) {
+            const num = mSeasonNum[1];
+            const cn = chineseNumMap[num] || num;
+            const vNumNoSpace = text.replace(/第\s*\d+\s*[季部]/, num).replace(/\s+/g, '').trim();
+            const vNum = text.replace(/第\s*\d+\s*[季部]/, ` ${num}`).replace(/\s+/g, ' ').trim();
+            const vCn = text.replace(/第\s*\d+\s*[季部]/, `第${cn}季`).replace(/\s+/g, ' ').trim();
+            [vNumNoSpace, vNum, vCn].forEach(v => {
+                if (v && !list.includes(v)) list.push(v);
+            });
+        }
+
+        const mSeasonCn = text.match(/第\s*([一二三四五六七八九十])\s*[季部]/);
+        if (mSeasonCn) {
+            const cn = mSeasonCn[1];
+            const num = numToChineseMap[cn] || cn;
+            const vNumNoSpace = text.replace(/第\s*[一二三四五六七八九十]\s*[季部]/, num).replace(/\s+/g, '').trim();
+            const vNum = text.replace(/第\s*[一二三四五六七八九十]\s*[季部]/, ` ${num}`).replace(/\s+/g, ' ').trim();
+            const vArab = text.replace(/第\s*[一二三四五六七八九十]\s*[季部]/, `第${num}季`).replace(/\s+/g, ' ').trim();
+            [vNumNoSpace, vNum, vArab].forEach(v => {
+                if (v && !list.includes(v)) list.push(v);
+            });
+        }
 
         // 如果是剧集或动漫，增加带集数的关键词，精准直达目标集或专项切片
         if (!isMovieMode && currentEpisodeNum) {
@@ -481,25 +520,64 @@
         });
     }
 
-    // 核心：深度解析 555 电影的全部多线路与切片列表
-    async function search555Lines(keywords) {
+    function parse555SearchCards(searchHtml) {
+        const list = [];
+        const reCard = /href="\/voddetail\/(\d+)\.html"[^>]*title="([^"]+)"/g;
+        let m;
+        while ((m = reCard.exec(searchHtml)) !== null) {
+            if (!list.some(item => item.id === m[1])) {
+                list.push({ id: m[1], title: m[2].replace(/<[^>]+>/g, '').trim() });
+            }
+        }
+        const reAlt = /href="\/voddetail\/(\d+)\.html"[\s\S]*?alt="([^"]+)"/g;
+        while ((m = reAlt.exec(searchHtml)) !== null) {
+            if (!list.some(item => item.id === m[1])) {
+                list.push({ id: m[1], title: m[2].replace(/<[^>]+>/g, '').trim() });
+            }
+        }
+        return list;
+    }
+
+    // 核心：深度解析 555 电影的全部多线路与切片列表 (支持精准卡片打分与季数归一化匹配)
+    async function search555Lines(keywords, targetTitle) {
         const host = 'https://555k06.com';
-        let vodId = null;
+        let bestVodId = null;
+        let bestScore = 0;
+        let matchedName = '';
+        const normTarget = normalizeTitleForMatch(targetTitle || keywords[0] || '');
+
         for (const kw of keywords) {
             try {
                 const searchHtml = await requestText(`${host}/vodsearch/-------------.html?wd=${encodeURIComponent(kw)}`);
-                const m = searchHtml.match(/\/voddetail\/(\d+)\.html/);
-                if (m) {
-                    vodId = m[1];
-                    console.log(`${TAG} 555匹配影片ID: ${vodId} (关键词: ${kw})`);
-                    break;
+                const cards = parse555SearchCards(searchHtml);
+                for (const card of cards) {
+                    const normCard = normalizeTitleForMatch(card.title);
+                    let score = 0;
+                    if (normCard === normTarget) {
+                        score = 100;
+                    } else if (normCard.startsWith(normTarget) || normTarget.startsWith(normCard)) {
+                        score = 80;
+                    } else if (normCard.includes(normTarget) || normTarget.includes(normCard)) {
+                        score = 60;
+                    } else if (card.title === kw || card.title.includes(kw) || kw.includes(card.title)) {
+                        score = 50;
+                    }
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestVodId = card.id;
+                        matchedName = card.title;
+                        if (bestScore === 100) break;
+                    }
                 }
+                if (bestScore === 100) break;
             } catch (e) {}
         }
-        if (!vodId) return [];
+
+        if (!bestVodId || bestScore < 50) return [];
+        console.log(`${TAG} 555精准打分匹配影片: ID=${bestVodId}, 标题=[${matchedName}], 得分=${bestScore}`);
 
         try {
-            const detailHtml = await requestText(`${host}/voddetail/${vodId}.html`);
+            const detailHtml = await requestText(`${host}/voddetail/${bestVodId}.html`);
             const tabNames = [];
             const reTab = /data-dropdown-value="([^"]+)"/g;
             let tm;
@@ -721,7 +799,7 @@
 
         // 1. 优先拉取 555 电影的专属高速线路集群 (多达 6~10 条全网高质量线路)
         try {
-            const lines555 = await search555Lines(keywords);
+            const lines555 = await search555Lines(keywords, title);
             if (lines555 && lines555.length > 0) {
                 matchedSources.push(...lines555);
                 console.log(`${TAG} 成功载入 555 电影专属线路: ${lines555.length} 条`);
@@ -756,9 +834,11 @@
                     const data = await requestApi(src.api + encodeURIComponent(kw));
                     if (!data || !data.list || !data.list.length) continue;
 
+                    const normKw = normalizeTitleForMatch(kw);
                     const matchedVod = data.list.find(vod => {
                         const vName = parseTitleAndEp(vod.vod_name).title;
-                        return vName === kw || vName.includes(kw) || kw.includes(vName);
+                        const normVName = normalizeTitleForMatch(vName);
+                        return normVName === normKw || vName === kw || vName.includes(kw) || kw.includes(vName);
                     }) || data.list[0];
 
                     if (!matchedVod || !matchedVod.vod_play_url) continue;
