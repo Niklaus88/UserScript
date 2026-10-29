@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.9.25
+// @version      2.9.26
 // @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，彻底修复电影播放搜索时清晰度标签（如576P）被误识别为集数（第576集）导致找源失败的严重Bug（引入分辨率全量免疫过滤与电影类别绝对锁定）、精准确保非电影电视剧/动漫/综艺选集与连载集数不受任何影响、重磅引入低端影视官方主站 (DDYS.app) 专属极速【亚太线路 (1080P/原画)】并保持Top 2黄金起播高优先级、同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（彻底重构双模式独立自愈响应系统实现窗口模式进窗即显移出立退与全屏模式触底140px宽幅热区毫秒级滑升双向完美自愈、彻底清除代码多余空格消除篡改猴所有黄色感叹号语法警告、精准修复首集状态下【上一集】与末集状态下【下一集】未呈现沉稳暗灰色的Bug、彻底杜绝全局按钮高特异性规则覆盖禁用态、支持DOM矢量填色与高优先级CSS双重灰阶着色、彻底修复上一集/下一集切换期间旧视频背景声音泄露与加载层覆盖导致播放器失联卡死Bug、非电影类连载节目专属全新重磅上线【上一集/下一集】无缝秒切功能，严格锁定控制栏排版为【上一集⏮】->【播放▶】->【下一集⏭】->【音量🔊】->【时间戳】、采用方案A内嵌无刷新平滑切流保持全屏不被打断并静默同步地址栏与页面选集高亮、首集与末集智能半透明置灰防呆、视频播放完毕或片尾跳过自动连播下一集、精准收敛设置抽屉面板宽度至精致紧凑比例消除空旷感、彻底消除Artplayer默认居中导致的图标文字参差不齐Bug实现设置项图标与文字绝对左对齐、精准修复设置抽屉菜单右侧箭头图标变形切角与左侧矢量图标实心填充Bug、精准隔离控制按钮样式彻底修复时间戳与进度条重叠挤压Bug、精修控制按钮悬停微圆环光效消除过大长方形高晕、柔和收敛进度条选中微动动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
@@ -712,9 +712,8 @@
     // 核心：深度解析 555 电影的全部多线路与切片列表 (支持精准卡片打分与防串季匹配)
     async function search555Lines(keywords, targetTitle) {
         const host = 'https://555k06.com';
-        let bestVodId = null;
+        const matchedCards = [];
         let bestScore = 0;
-        let matchedName = '';
 
         for (const kw of keywords) {
             try {
@@ -722,67 +721,79 @@
                 const cards = parse555SearchCards(searchHtml);
                 for (const card of cards) {
                     const score = calculateMatchScore(card.title, targetTitle || kw, kw);
-                    if (score > bestScore) {
-                        bestScore = score;
-                        bestVodId = card.id;
-                        matchedName = card.title;
-                        if (bestScore === 100) break;
+                    if (score >= 60) {
+                        if (score > bestScore) bestScore = score;
+                        if (!matchedCards.some(c => c.id === card.id)) {
+                            matchedCards.push({ id: card.id, title: card.title, score: score });
+                        }
                     }
                 }
-                if (bestScore === 100) break;
             } catch (e) {}
         }
 
-        if (!bestVodId || bestScore < 50) return [];
-        console.log(`${TAG} 555精准打分匹配影片: ID=${bestVodId}, 标题=[${matchedName}], 得分=${bestScore}`);
+        // 筛选最高分档位的候选卡片（若存在100分完全匹配，则保留所有100分条目，如空枪的多个同名资源分流）
+        const targetCards = matchedCards.filter(c => c.score === bestScore && bestScore >= 50);
+        if (!targetCards || targetCards.length === 0) return [];
 
-        try {
-            const detailHtml = await requestText(`${host}/voddetail/${bestVodId}.html`);
-            const tabNames = [];
-            const reTab = /data-dropdown-value="([^"]+)"/g;
-            let tm;
-            while ((tm = reTab.exec(detailHtml)) !== null) {
-                tabNames.push(tm[1].trim());
-            }
+        console.log(`${TAG} 555精准匹配到 ${targetCards.length} 个同名/高分条目:`, targetCards.map(c => `ID=${c.id}(${c.title})`).join(', '));
 
-            const reList = /<div[^>]*class="[^"]*module-play-list[^"]*"[\s\S]*?<\/div>\s*<\/div>/g;
-            let lm;
-            let idx = 0;
-            const lines = [];
+        const allLines = [];
+        const seenLineKeys = new Set();
 
-            while ((lm = reList.exec(detailHtml)) !== null && idx < tabNames.length) {
-                const lineName = tabNames[idx];
-                const reEp = /href="(\/vodplay\/\d+-\d+-\d+\.html)"[^>]*><span>([^<]+)<\/span>/g;
-                let em;
-                const eps = [];
-                while ((em = reEp.exec(lm[0])) !== null) {
-                    const epTitle = em[2].trim();
-                    const numMatch = epTitle.match(/\d+/);
-                    const num = numMatch ? String(parseInt(numMatch[0], 10)) : '';
-                    eps.push({
-                        title: epTitle,
-                        num: num,
-                        playLink: em[1],
-                        url: '' // 懒加载切片地址
-                    });
+        // 并发获取所有同名条目的播放线路并合并去重
+        await Promise.allSettled(targetCards.map(async (card) => {
+            try {
+                const detailHtml = await requestText(`${host}/voddetail/${card.id}.html`);
+                const tabNames = [];
+                const reTab = /data-dropdown-value="([^"]+)"/g;
+                let tm;
+                while ((tm = reTab.exec(detailHtml)) !== null) {
+                    tabNames.push(tm[1].trim());
                 }
 
-                // 保留有效线路（全量开放极速蓝光-ws、高清蓝光等全部集群，由 pLoader 断点自愈引擎保障从头到尾无失真播放）
-                if (eps.length > 0) {
-                    lines.push({
-                        sourceId: `555_${idx}`,
-                        sourceName: `555·${lineName}`,
-                        is555: true,
-                        episodes: eps
-                    });
+                const reList = /<div[^>]*class="[^"]*module-play-list[^"]*"[\s\S]*?<\/div>\s*<\/div>/g;
+                let lm;
+                let idx = 0;
+
+                while ((lm = reList.exec(detailHtml)) !== null && idx < tabNames.length) {
+                    const lineName = tabNames[idx];
+                    const reEp = /href="(\/vodplay\/\d+-\d+-\d+\.html)"[^>]*><span>([^<]+)<\/span>/g;
+                    let em;
+                    const eps = [];
+                    while ((em = reEp.exec(lm[0])) !== null) {
+                        const epTitle = em[2].trim();
+                        const numMatch = epTitle.match(/\d+/);
+                        const num = numMatch ? String(parseInt(numMatch[0], 10)) : '';
+                        eps.push({
+                            title: epTitle,
+                            num: num,
+                            playLink: em[1],
+                            url: '' // 懒加载切片地址
+                        });
+                    }
+
+                    if (eps.length > 0) {
+                        const lineFullName = `555·${lineName}`;
+                        // 排重标识：同一线路名称 + 首集播放链接
+                        const dedupKey = `${lineFullName}_${eps[0].playLink}`;
+                        if (!seenLineKeys.has(dedupKey)) {
+                            seenLineKeys.add(dedupKey);
+                            allLines.push({
+                                sourceId: `555_${card.id}_${idx}`,
+                                sourceName: lineFullName,
+                                is555: true,
+                                episodes: eps
+                            });
+                        }
+                    }
+                    idx++;
                 }
-                idx++;
+            } catch (err) {
+                console.warn(`${TAG} 555详情解析异常 (ID=${card.id}):`, err);
             }
-            return lines;
-        } catch (err) {
-            console.warn(`${TAG} 555多线路解析失败:`, err);
-            return [];
-        }
+        }));
+
+        return allLines;
     }
 
     // 核心：深度解析低端影视官方主站 (DDYS.app) 专属极速「亚太线路 (1080P/原画)」
