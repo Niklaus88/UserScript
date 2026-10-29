@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.9.14
+// @version      2.9.15
 // @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，彻底修复电影播放搜索时清晰度标签（如576P）被误识别为集数（第576集）导致找源失败的严重Bug（引入分辨率全量免疫过滤与电影类别绝对锁定）、精准确保非电影电视剧/动漫/综艺选集与连载集数不受任何影响、重磅引入低端影视官方主站 (DDYS.app) 专属极速【亚太线路 (1080P/原画)】并保持Top 2黄金起播高优先级、同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（彻底重构双模式独立自愈响应系统实现窗口模式进窗即显移出立退与全屏模式触底140px宽幅热区毫秒级滑升双向完美自愈、彻底清除代码多余空格消除篡改猴所有黄色感叹号语法警告、精准修复首集状态下【上一集】与末集状态下【下一集】未呈现沉稳暗灰色的Bug、彻底杜绝全局按钮高特异性规则覆盖禁用态、支持DOM矢量填色与高优先级CSS双重灰阶着色、彻底修复上一集/下一集切换期间旧视频背景声音泄露与加载层覆盖导致播放器失联卡死Bug、非电影类连载节目专属全新重磅上线【上一集/下一集】无缝秒切功能，严格锁定控制栏排版为【上一集⏮】->【播放▶】->【下一集⏭】->【音量🔊】->【时间戳】、采用方案A内嵌无刷新平滑切流保持全屏不被打断并静默同步地址栏与页面选集高亮、首集与末集智能半透明置灰防呆、视频播放完毕或片尾跳过自动连播下一集、精准收敛设置抽屉面板宽度至精致紧凑比例消除空旷感、彻底消除Artplayer默认居中导致的图标文字参差不齐Bug实现设置项图标与文字绝对左对齐、精准修复设置抽屉菜单右侧箭头图标变形切角与左侧矢量图标实心填充Bug、精准隔离控制按钮样式彻底修复时间戳与进度条重叠挤压Bug、精修控制按钮悬停微圆环光效消除过大长方形高晕、柔和收敛进度条选中微动动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
@@ -2849,11 +2849,11 @@
                 max-height: 280px;
                 overflow-y: auto;
                 border-radius: 16px;
-                background: rgba(18, 22, 32, 0.92);
-                backdrop-filter: blur(28px) saturate(210%);
-                -webkit-backdrop-filter: blur(28px) saturate(210%);
-                border: 1px solid rgba(255, 255, 255, 0.18);
-                box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), inset 0 1px 1.5px rgba(255, 255, 255, 0.25);
+                background: rgba(18, 22, 32, 0.58) !important;
+                backdrop-filter: blur(18px) saturate(160%) !important;
+                -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
+                border: 1px solid rgba(255, 255, 255, 0.12) !important;
+                box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45) !important;
                 padding: 6px;
                 display: none;
                 flex-direction: column;
@@ -3196,8 +3196,8 @@
                 bottom: 50px !important;
                 left: 50% !important;
                 transform: translateX(-50%) translateY(8px) scale(0.95) !important;
-                width: 42px !important;
-                height: 140px !important;
+                width: 38px !important;
+                height: 135px !important;
                 padding: 0 !important;
                 opacity: 0 !important;
                 pointer-events: none !important;
@@ -3224,13 +3224,13 @@
             .art-video-player .art-volume-panel .art-volume-inner {
                 width: 100% !important;
                 height: 100% !important;
-                border-radius: 20px !important;
-                background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(25, 30, 45, 0.45) 45%, rgba(12, 15, 22, 0.85) 100%) !important;
-                backdrop-filter: blur(28px) saturate(210%) !important;
-                -webkit-backdrop-filter: blur(28px) saturate(210%) !important;
-                border: 1px solid rgba(255, 255, 255, 0.20) !important;
-                box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), inset 0 1px 1.5px rgba(255, 255, 255, 0.35) !important;
-                padding: 14px 0 12px !important;
+                border-radius: 16px !important;
+                background: rgba(18, 22, 32, 0.55) !important;
+                backdrop-filter: blur(16px) saturate(160%) !important;
+                -webkit-backdrop-filter: blur(16px) saturate(160%) !important;
+                border: 1px solid rgba(255, 255, 255, 0.12) !important;
+                box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45) !important;
+                padding: 12px 0 10px !important;
                 display: flex !important;
                 flex-direction: column !important;
                 align-items: center !important;
@@ -3248,46 +3248,48 @@
             .art-video-player .art-volume-panel .art-volume-handle {
                 width: 4px !important;
                 height: 100% !important;
-                background: rgba(255, 255, 255, 0.25) !important;
+                background: rgba(255, 255, 255, 0.3) !important;
                 border-radius: 999px !important;
                 position: relative !important;
                 overflow: hidden !important;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
             }
             .art-video-player .art-volume-panel .art-volume-loaded {
                 background: #ffffff !important;
                 border-radius: 999px !important;
-                box-shadow: 0 0 8px rgba(255, 255, 255, 0.8) !important;
             }
             .art-video-player .art-volume-panel .art-volume-indicator {
-                width: 12px !important;
-                height: 12px !important;
+                width: 10px !important;
+                height: 10px !important;
                 background: #ffffff !important;
                 border-radius: 50% !important;
-                box-shadow: 0 0 10px rgba(255, 255, 255, 0.95), 0 1px 3px rgba(0,0,0,0.5) !important;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 2px rgba(255, 255, 255, 0.8) !important;
                 position: absolute !important;
                 left: 50% !important;
                 transform: translateX(-50%) !important;
             }
             .art-video-player .art-volume-panel .art-volume-value {
-                color: rgba(255, 255, 255, 0.9) !important;
+                color: #ffffff !important;
                 font-size: 11px !important;
+                font-weight: 500 !important;
                 font-family: ui-monospace, SFMono-Regular, monospace !important;
+                text-shadow: 0 1px 3px rgba(0, 0, 0, 0.65) !important;
             }
-            /* 6. 设置高透毛玻璃抽屉面板 (正确定位于右下角齿轮上方，精致紧凑比例，绝对对齐排版) */
+            /* 6. 设置抽屉面板：轻量化半透明磨砂质感，融入画面，不显沉重 */
             .art-video-player .art-settings {
                 position: absolute !important;
                 top: auto !important;
                 bottom: 66px !important;
                 right: 24px !important;
                 left: auto !important;
-                width: 184px !important;
+                width: 180px !important;
                 max-height: 380px !important;
                 border-radius: 16px !important;
-                background: rgba(22, 26, 38, 0.94) !important;
-                backdrop-filter: blur(28px) saturate(210%) !important;
-                -webkit-backdrop-filter: blur(28px) saturate(210%) !important;
-                border: 1px solid rgba(255, 255, 255, 0.18) !important;
-                box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), inset 0 1px 1.5px rgba(255, 255, 255, 0.25) !important;
+                background: rgba(18, 22, 32, 0.58) !important;
+                backdrop-filter: blur(18px) saturate(160%) !important;
+                -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
+                border: 1px solid rgba(255, 255, 255, 0.12) !important;
+                box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45) !important;
                 padding: 6px 8px !important;
                 overflow-y: auto !important;
                 overflow-x: hidden !important;
@@ -3308,10 +3310,10 @@
                 margin: 0 !important;
             }
             .art-video-player .art-settings .art-setting-item {
-                border-radius: 12px !important;
+                border-radius: 10px !important;
                 transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-                padding: 7px 8px !important;
-                color: rgba(255, 255, 255, 0.9) !important;
+                padding: 7px 9px !important;
+                color: #ffffff !important;
                 display: flex !important;
                 align-items: center !important;
                 justify-content: space-between !important;
@@ -3319,7 +3321,7 @@
                 cursor: pointer !important;
             }
             .art-video-player .art-settings .art-setting-item:hover {
-                background: rgba(255, 255, 255, 0.14) !important;
+                background: rgba(255, 255, 255, 0.12) !important;
             }
             /* 左侧功能项专属：彻底重置为严格靠左对齐（强力覆盖 Artplayer 默认的 justify-content: center），彻底消除各功能因字数不同导致的错落下沉参差不齐 */
             .art-video-player .art-settings .art-setting-item .art-setting-item-left {
