@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.9.10
+// @version      2.9.11
 // @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，彻底修复电影播放搜索时清晰度标签（如576P）被误识别为集数（第576集）导致找源失败的严重Bug（引入分辨率全量免疫过滤与电影类别绝对锁定）、精准确保非电影电视剧/动漫/综艺选集与连载集数不受任何影响、重磅引入低端影视官方主站 (DDYS.app) 专属极速【亚太线路 (1080P/原画)】并保持Top 2黄金起播高优先级、同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（彻底重构双模式独立自愈响应系统实现窗口模式进窗即显移出立退与全屏模式触底140px宽幅热区毫秒级滑升双向完美自愈、彻底清除代码多余空格消除篡改猴所有黄色感叹号语法警告、精准修复首集状态下【上一集】与末集状态下【下一集】未呈现沉稳暗灰色的Bug、彻底杜绝全局按钮高特异性规则覆盖禁用态、支持DOM矢量填色与高优先级CSS双重灰阶着色、彻底修复上一集/下一集切换期间旧视频背景声音泄露与加载层覆盖导致播放器失联卡死Bug、非电影类连载节目专属全新重磅上线【上一集/下一集】无缝秒切功能，严格锁定控制栏排版为【上一集⏮】->【播放▶】->【下一集⏭】->【音量🔊】->【时间戳】、采用方案A内嵌无刷新平滑切流保持全屏不被打断并静默同步地址栏与页面选集高亮、首集与末集智能半透明置灰防呆、视频播放完毕或片尾跳过自动连播下一集、精准收敛设置抽屉面板宽度至精致紧凑比例消除空旷感、彻底消除Artplayer默认居中导致的图标文字参差不齐Bug实现设置项图标与文字绝对左对齐、精准修复设置抽屉菜单右侧箭头图标变形切角与左侧矢量图标实心填充Bug、精准隔离控制按钮样式彻底修复时间戳与进度条重叠挤压Bug、精修控制按钮悬停微圆环光效消除过大长方形高晕、柔和收敛进度条选中微动动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
@@ -1983,6 +1983,12 @@
                     theme: '#ffffff',
                     autoplay: true,
                     autoSize: true,
+                    i18n: {
+                        'zh-cn': {
+                            'Show Setting': '设置',
+                            'Hide Setting': '设置'
+                        }
+                    },
                     playbackRate: false,
                     aspectRatio: false,
                     miniProgressBar: false,
@@ -1996,7 +2002,7 @@
                             selector: [
                                 { html: '0.5×', value: 0.5 },
                                 { html: '0.75×', value: 0.75 },
-                                { default: true, html: '1.0× 正常', value: 1.0 },
+                                { default: true, html: '1.0×', value: 1.0 },
                                 { html: '1.25×', value: 1.25 },
                                 { html: '1.5×', value: 1.5 },
                                 { html: '2.0×', value: 2.0 }
@@ -2900,16 +2906,16 @@
             /* 1. 浮岛悬浮胶囊：单行整合，解绑高度溢出限制杜绝时间戳与音量裁切 */
             .art-video-player .art-bottom {
                 top: auto !important;
-                bottom: 16px !important;
-                left: 18px !important;
-                right: 18px !important;
+                bottom: 18px !important;
+                left: 20px !important;
+                right: 20px !important;
                 width: auto !important;
-                height: 46px !important;
-                padding: 0 14px !important;
+                height: 52px !important;
+                padding: 0 18px !important;
                 display: flex !important;
                 flex-direction: row !important;
                 align-items: center !important;
-                gap: 10px !important;
+                gap: 12px !important;
                 background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(25, 30, 45, 0.28) 45%, rgba(12, 15, 22, 0.42) 100%) !important;
                 backdrop-filter: blur(24px) saturate(200%) contrast(102%) !important;
                 -webkit-backdrop-filter: blur(24px) saturate(200%) contrast(102%) !important;
@@ -3143,7 +3149,7 @@
             }
             .art-video-player .art-volume-panel {
                 position: absolute !important;
-                bottom: 52px !important;
+                bottom: 58px !important;
                 left: 50% !important;
                 transform: translateX(-50%) translateY(8px) scale(0.95) !important;
                 width: 42px !important;
@@ -3227,21 +3233,28 @@
             .art-video-player .art-settings {
                 position: absolute !important;
                 top: auto !important;
-                bottom: 72px !important;
+                bottom: 78px !important;
                 right: 20px !important;
                 left: auto !important;
                 width: 184px !important;
                 max-height: 380px !important;
-                border-radius: 18px !important;
-                background: rgba(18, 22, 32, 0.92) !important;
+                border-radius: 16px !important;
+                background: rgba(22, 26, 38, 0.94) !important;
                 backdrop-filter: blur(28px) saturate(210%) !important;
                 -webkit-backdrop-filter: blur(28px) saturate(210%) !important;
                 border: 1px solid rgba(255, 255, 255, 0.18) !important;
                 box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), inset 0 1px 1.5px rgba(255, 255, 255, 0.25) !important;
-                padding: 6px !important;
-                overflow-x: hidden !important;
+                padding: 6px 8px !important;
                 overflow-y: auto !important;
+                overflow-x: hidden !important;
+                scrollbar-width: none !important;
+                -ms-overflow-style: none !important;
                 z-index: 95 !important;
+            }
+            .art-video-player .art-settings::-webkit-scrollbar {
+                display: none !important;
+                width: 0 !important;
+                height: 0 !important;
             }
             .art-video-player .art-settings .art-setting-panel {
                 background: transparent !important;
@@ -3253,7 +3266,7 @@
             .art-video-player .art-settings .art-setting-item {
                 border-radius: 12px !important;
                 transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-                padding: 8px 10px !important;
+                padding: 7px 8px !important;
                 color: rgba(255, 255, 255, 0.9) !important;
                 display: flex !important;
                 align-items: center !important;
@@ -3383,8 +3396,8 @@
             }
             /* 7. 控制按钮微交互反馈（仅作用于可点击的图标按钮，坚决排除时间戳、进度条容器与禁用按钮） */
             .art-video-player .art-bottom .art-control:not(.art-control-progress):not(.art-control-time):not(.art-control-disabled) {
-                height: 32px !important;
-                width: 32px !important;
+                height: 36px !important;
+                width: 36px !important;
                 border-radius: 50% !important;
                 display: inline-flex !important;
                 align-items: center !important;
@@ -3399,6 +3412,23 @@
                 opacity: 1 !important;
                 background: rgba(255, 255, 255, 0.10) !important;
                 transform: scale(1.06) !important;
+            }
+            /* 控制条按钮气泡提示 (hint.css) 视觉微调：对齐 555 极简沉浸风格 */
+            .art-video-player [class*=hint--]:after {
+                background: rgba(18, 22, 32, 0.94) !important;
+                backdrop-filter: blur(16px) !important;
+                -webkit-backdrop-filter: blur(16px) !important;
+                border: 1px solid rgba(255, 255, 255, 0.18) !important;
+                border-radius: 6px !important;
+                box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45) !important;
+                color: rgba(255, 255, 255, 0.95) !important;
+                font-size: 12px !important;
+                font-weight: 500 !important;
+                padding: 4px 8px !important;
+                line-height: 1.4 !important;
+            }
+            .art-video-player [class*=hint--]:before {
+                display: none !important;
             }
 
             /* 加载中动画 */
