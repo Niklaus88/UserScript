@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         爱壹帆 1080P 高清换源播放
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      2.9.15
+// @version      2.9.16
 // @description  为爱壹帆（yfsp.tv）接入第三方真·1080P/4K蓝光切片源，彻底修复电影播放搜索时清晰度标签（如576P）被误识别为集数（第576集）导致找源失败的严重Bug（引入分辨率全量免疫过滤与电影类别绝对锁定）、精准确保非电影电视剧/动漫/综艺选集与连载集数不受任何影响、重磅引入低端影视官方主站 (DDYS.app) 专属极速【亚太线路 (1080P/原画)】并保持Top 2黄金起播高优先级、同步引入555电影专属高速蓝光集群与低端影视专属1080P/新浪极清线路，全新重构iOS 26/27纯白高透液体玻璃播放系统（彻底重构双模式独立自愈响应系统实现窗口模式进窗即显移出立退与全屏模式触底140px宽幅热区毫秒级滑升双向完美自愈、彻底清除代码多余空格消除篡改猴所有黄色感叹号语法警告、精准修复首集状态下【上一集】与末集状态下【下一集】未呈现沉稳暗灰色的Bug、彻底杜绝全局按钮高特异性规则覆盖禁用态、支持DOM矢量填色与高优先级CSS双重灰阶着色、彻底修复上一集/下一集切换期间旧视频背景声音泄露与加载层覆盖导致播放器失联卡死Bug、非电影类连载节目专属全新重磅上线【上一集/下一集】无缝秒切功能，严格锁定控制栏排版为【上一集⏮】->【播放▶】->【下一集⏭】->【音量🔊】->【时间戳】、采用方案A内嵌无刷新平滑切流保持全屏不被打断并静默同步地址栏与页面选集高亮、首集与末集智能半透明置灰防呆、视频播放完毕或片尾跳过自动连播下一集、精准收敛设置抽屉面板宽度至精致紧凑比例消除空旷感、彻底消除Artplayer默认居中导致的图标文字参差不齐Bug实现设置项图标与文字绝对左对齐、精准修复设置抽屉菜单右侧箭头图标变形切角与左侧矢量图标实心填充Bug、精准隔离控制按钮样式彻底修复时间戳与进度条重叠挤压Bug、精修控制按钮悬停微圆环光效消除过大长方形高晕、柔和收敛进度条选中微动动画与刺目泛光光晕、为设置面板专属重绘精致SVG矢量图标、全新重构线路优先级评分模型将555·极速蓝光-R锁定为Top 1默认起播源、555·极速蓝光-b锁定为Top 2黄金备选、全源检索并发化并将超时熔断压制在3.5秒以内、精准屏蔽主页大图轮播背景视频、规范统一播放器左上角标题显示格式为【XXX - 第N集】），免除VIP限制，深度净网去广告，精准季数识别与防串季打分系统，全源接入Hls智能自愈防断点抗失真锁音引擎并完美定位UP主关注卡片，支持多线路自由切换与进度无缝同步
 // @author       Don E.Knuth
 // @match        https://www.yfsp.tv/*
@@ -1523,7 +1523,8 @@
                 const item = document.createElement('button');
                 item.className = 'yfsp-hd-source-item' + (idx === selectedSourceIndex ? ' active' : '');
                 item.type = 'button';
-                item.innerHTML = `<span>${s.sourceName}${statusBadge}</span>${idx === selectedSourceIndex ? '<span class="yfsp-hd-active-badge">当前</span>' : ''}`;
+                const checkSvg = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+                item.innerHTML = `<span class="yfsp-hd-source-text">${s.sourceName}${statusBadge}</span>${idx === selectedSourceIndex ? `<span class="yfsp-hd-active-check">${checkSvg}</span>` : ''}`;
                 item.addEventListener('click', (e) => {
                     e.stopPropagation();
                     selectedSourceIndex = idx;
@@ -2843,22 +2844,40 @@
             }
             .yfsp-hd-source-dropdown {
                 position: absolute;
-                top: calc(100% + 8px);
+                top: calc(100% + 6px);
                 right: 0;
-                width: 230px;
+                width: 240px;
                 max-height: 280px;
                 overflow-y: auto;
+                overflow-x: hidden;
                 border-radius: 16px;
-                background: rgba(18, 22, 32, 0.58) !important;
-                backdrop-filter: blur(18px) saturate(160%) !important;
-                -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
-                border: 1px solid rgba(255, 255, 255, 0.12) !important;
-                box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45) !important;
-                padding: 6px;
+                /* 暖暗温润高透底色，完美贴合视频画面暖调 */
+                background: rgba(28, 24, 22, 0.58) !important;
+                backdrop-filter: blur(24px) saturate(180%) !important;
+                -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+                border: 1px solid rgba(255, 255, 255, 0.16) !important;
+                box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.2) !important;
+                padding: 6px 8px;
                 display: none;
                 flex-direction: column;
-                gap: 4px;
+                gap: 3px;
                 z-index: 100;
+                /* 优雅收敛微细半透滚动条 */
+                scrollbar-width: thin !important;
+                scrollbar-color: rgba(255, 255, 255, 0.35) transparent !important;
+            }
+            .yfsp-hd-source-dropdown::-webkit-scrollbar {
+                width: 4px !important;
+            }
+            .yfsp-hd-source-dropdown::-webkit-scrollbar-track {
+                background: transparent !important;
+            }
+            .yfsp-hd-source-dropdown::-webkit-scrollbar-thumb {
+                background: rgba(255, 255, 255, 0.32) !important;
+                border-radius: 999px !important;
+            }
+            .yfsp-hd-source-dropdown::-webkit-scrollbar-thumb:hover {
+                background: rgba(255, 255, 255, 0.55) !important;
             }
             .yfsp-hd-source-dropdown.show {
                 display: flex;
@@ -2866,34 +2885,44 @@
             .yfsp-hd-source-item {
                 width: 100%;
                 text-align: left;
-                padding: 8px 12px;
-                border-radius: 10px;
+                padding: 7px 10px;
+                border-radius: 11px;
                 background: transparent;
                 border: none;
-                color: rgba(255, 255, 255, 0.85);
+                color: rgba(255, 255, 255, 0.88);
                 font-size: 12px;
+                font-weight: 500;
                 cursor: pointer;
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                transition: all 0.15s ease;
+                gap: 8px;
+                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+                transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+                box-sizing: border-box;
+            }
+            .yfsp-hd-source-text {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                flex: 1;
             }
             .yfsp-hd-source-item:hover {
-                background: rgba(255, 255, 255, 0.12);
+                background: rgba(255, 255, 255, 0.14);
                 color: #ffffff;
             }
             .yfsp-hd-source-item.active {
-                background: rgba(255, 255, 255, 0.18);
+                background: rgba(255, 255, 255, 0.22);
                 color: #ffffff;
                 font-weight: 600;
             }
-            .yfsp-hd-active-badge {
-                font-size: 10px;
-                background: #ffffff;
-                color: #000;
-                padding: 1px 5px;
-                border-radius: 4px;
-                font-weight: 700;
+            .yfsp-hd-active-check {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                color: #ffffff;
+                flex-shrink: 0;
+                filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
             }
             .yfsp-hd-close {
                 background: transparent !important;
@@ -3225,11 +3254,11 @@
                 width: 100% !important;
                 height: 100% !important;
                 border-radius: 16px !important;
-                background: rgba(18, 22, 32, 0.55) !important;
-                backdrop-filter: blur(16px) saturate(160%) !important;
-                -webkit-backdrop-filter: blur(16px) saturate(160%) !important;
-                border: 1px solid rgba(255, 255, 255, 0.12) !important;
-                box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45) !important;
+                background: rgba(28, 24, 22, 0.55) !important;
+                backdrop-filter: blur(24px) saturate(180%) !important;
+                -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+                border: 1px solid rgba(255, 255, 255, 0.16) !important;
+                box-shadow: 0 14px 32px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.2) !important;
                 padding: 12px 0 10px !important;
                 display: flex !important;
                 flex-direction: column !important;
@@ -3285,11 +3314,11 @@
                 width: 180px !important;
                 max-height: 380px !important;
                 border-radius: 16px !important;
-                background: rgba(18, 22, 32, 0.58) !important;
-                backdrop-filter: blur(18px) saturate(160%) !important;
-                -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
-                border: 1px solid rgba(255, 255, 255, 0.12) !important;
-                box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45) !important;
+                background: rgba(28, 24, 22, 0.58) !important;
+                backdrop-filter: blur(24px) saturate(180%) !important;
+                -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+                border: 1px solid rgba(255, 255, 255, 0.16) !important;
+                box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.2) !important;
                 padding: 6px 8px !important;
                 overflow-y: auto !important;
                 overflow-x: hidden !important;
