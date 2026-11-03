@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         一抖阁 - 免费看完整视频（终极版）
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      4.4
+// @version      4.5
 // @description  绕过试看与每日次数限制，自动提取视频直链，拦截广告与弹窗，支持倍速/画中画/键盘快捷键/上一集下一集无缝切换/自动连播下一集/原画高速下载（已修复分类列表误注入与 yidouge.vip 新域名适配）
 // @author       Don E.Knuth
 // @match        *://yidouge.vip/video/*
@@ -389,22 +389,43 @@
             nextUrl = nextEl.getAttribute('data-next-url') || nextEl.getAttribute('href') || '';
         }
 
-        // 策略B: 从选集/剧集列表中上下文分析当前项的前后兄弟链接
+        // 策略B: 精确适配一抖阁合集列表结构 (.author-playlist__item) 及通用选集列表
         if (!prevUrl || !nextUrl) {
-            const activeItem = document.querySelector('.episode-item.active, .ep-item.active, .anthology-item.active, .playlist .active, [class*="episode"].active');
-            if (activeItem) {
-                if (!prevUrl) {
-                    const prevNode = activeItem.previousElementSibling;
-                    if (prevNode) {
-                        const pLink = prevNode.tagName === 'A' ? prevNode : prevNode.querySelector('a');
-                        if (pLink && pLink.getAttribute('href')) prevUrl = pLink.getAttribute('href');
-                    }
+            // 一抖阁原生合集列表：.author-playlist__item (当前播放项带有 .is-current，后一部带有 .is-next)
+            const ydgCurrent = document.querySelector('.author-playlist__item.is-current');
+            if (ydgCurrent) {
+                const prevNode = ydgCurrent.previousElementSibling;
+                if (prevNode && prevNode.matches && prevNode.matches('.author-playlist__item')) {
+                    prevUrl = prevNode.getAttribute('href') || '';
                 }
-                if (!nextUrl) {
-                    const nextNode = activeItem.nextElementSibling;
-                    if (nextNode) {
-                        const nLink = nextNode.tagName === 'A' ? nextNode : nextNode.querySelector('a');
-                        if (nLink && nLink.getAttribute('href')) nextUrl = nLink.getAttribute('href');
+                const nextNode = ydgCurrent.nextElementSibling;
+                if (nextNode && nextNode.matches && nextNode.matches('.author-playlist__item')) {
+                    nextUrl = nextNode.getAttribute('href') || '';
+                }
+            } else {
+                const ydgNextItem = document.querySelector('.author-playlist__item.is-next');
+                if (ydgNextItem && !nextUrl) {
+                    nextUrl = ydgNextItem.getAttribute('href') || '';
+                }
+            }
+
+            // 通用选集列表兜底
+            if (!prevUrl || !nextUrl) {
+                const activeItem = document.querySelector('.episode-item.active, .ep-item.active, .anthology-item.active, .playlist .active, [class*="episode"].active');
+                if (activeItem) {
+                    if (!prevUrl) {
+                        const prevNode = activeItem.previousElementSibling;
+                        if (prevNode) {
+                            const pLink = prevNode.tagName === 'A' ? prevNode : prevNode.querySelector('a');
+                            if (pLink && pLink.getAttribute('href')) prevUrl = pLink.getAttribute('href');
+                        }
+                    }
+                    if (!nextUrl) {
+                        const nextNode = activeItem.nextElementSibling;
+                        if (nextNode) {
+                            const nLink = nextNode.tagName === 'A' ? nextNode : nextNode.querySelector('a');
+                            if (nLink && nLink.getAttribute('href')) nextUrl = nLink.getAttribute('href');
+                        }
                     }
                 }
             }
