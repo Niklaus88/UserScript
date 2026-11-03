@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         一抖阁 - 免费看完整视频（终极版）
 // @namespace    https://github.com/Niklaus88/UserScript
-// @version      4.3
-// @description  绕过试看与每日次数限制，自动提取视频直链，拦截广告与弹窗，支持倍速/画中画/键盘快捷键/自动连播下一集/原画高速下载（已修复分类列表误注入与 yidouge.vip 新域名适配）
+// @version      4.4
+// @description  绕过试看与每日次数限制，自动提取视频直链，拦截广告与弹窗，支持倍速/画中画/键盘快捷键/上一集下一集无缝切换/自动连播下一集/原画高速下载（已修复分类列表误注入与 yidouge.vip 新域名适配）
 // @author       Don E.Knuth
 // @match        *://yidouge.vip/video/*
 // @match        *://*.yidouge.vip/video/*
@@ -198,6 +198,27 @@
                 box-shadow: 0 4px 12px rgba(37, 99, 235, 0.45);
             }
 
+            .ydg-btn-ep {
+                background: rgba(255, 255, 255, 0.1);
+                border-color: rgba(255, 255, 255, 0.22);
+                color: #f1f5f9 !important;
+            }
+
+            .ydg-btn-ep:hover {
+                background: rgba(255, 255, 255, 0.2);
+                border-color: rgba(255, 255, 255, 0.45);
+                color: #fff !important;
+            }
+
+            .ydg-btn-ep.ydg-disabled {
+                opacity: 0.35 !important;
+                cursor: not-allowed !important;
+                pointer-events: none !important;
+                background: rgba(255, 255, 255, 0.04) !important;
+                border-color: rgba(255, 255, 255, 0.08) !important;
+                color: #64748b !important;
+            }
+
             .ydg-btn-next {
                 background: linear-gradient(135deg, #10b981 0%, #059669 100%);
                 border-color: #10b981;
@@ -354,12 +375,39 @@
         let posterUrl = '';
         let title = '';
         let source = '';
+        let prevUrl = '';
         let nextUrl = '';
 
-        // 提取自动下一集链接
-        const nextEl = document.querySelector('[data-next-url], [data-video-next]');
+        // 策略A: 显式上一集 / 下一集属性与语义标签提取
+        const prevEl = document.querySelector('[data-prev-url], [data-video-prev], a[rel="prev"], .video-prev a, .prev-episode a, a.btn-prev');
+        if (prevEl) {
+            prevUrl = prevEl.getAttribute('data-prev-url') || prevEl.getAttribute('href') || '';
+        }
+
+        const nextEl = document.querySelector('[data-next-url], [data-video-next], a[rel="next"], .video-next a, .next-episode a, a.btn-next');
         if (nextEl) {
             nextUrl = nextEl.getAttribute('data-next-url') || nextEl.getAttribute('href') || '';
+        }
+
+        // 策略B: 从选集/剧集列表中上下文分析当前项的前后兄弟链接
+        if (!prevUrl || !nextUrl) {
+            const activeItem = document.querySelector('.episode-item.active, .ep-item.active, .anthology-item.active, .playlist .active, [class*="episode"].active');
+            if (activeItem) {
+                if (!prevUrl) {
+                    const prevNode = activeItem.previousElementSibling;
+                    if (prevNode) {
+                        const pLink = prevNode.tagName === 'A' ? prevNode : prevNode.querySelector('a');
+                        if (pLink && pLink.getAttribute('href')) prevUrl = pLink.getAttribute('href');
+                    }
+                }
+                if (!nextUrl) {
+                    const nextNode = activeItem.nextElementSibling;
+                    if (nextNode) {
+                        const nLink = nextNode.tagName === 'A' ? nextNode : nextNode.querySelector('a');
+                        if (nLink && nLink.getAttribute('href')) nextUrl = nLink.getAttribute('href');
+                    }
+                }
+            }
         }
 
         // 策略1: 从 wrap DOM 的 data-video-url 获取（最精准）
@@ -458,6 +506,7 @@
                 poster: posterUrl,
                 title: title,
                 source: source,
+                prevUrl: prevUrl,
                 nextUrl: nextUrl
             };
         }
@@ -580,7 +629,36 @@
         const toolbarLeft = document.createElement('div');
         toolbarLeft.className = 'ydg-toolbar-left';
 
-        // 1. 高速下载按钮
+        // 1. 上一集按钮 (若存在或属于多集剧集)
+        if (info.prevUrl) {
+            const prevBtn = document.createElement('a');
+            prevBtn.className = 'ydg-btn ydg-btn-ep';
+            prevBtn.href = info.prevUrl;
+            prevBtn.innerHTML = '⏮ 上一集';
+            prevBtn.title = '点击播放上一集内容 (快捷键: Shift + P)';
+            toolbarLeft.appendChild(prevBtn);
+        } else if (info.nextUrl) {
+            // 有下一集但无上一集时，生成置灰的上一集按钮，保证排版对齐
+            const prevBtn = document.createElement('button');
+            prevBtn.type = 'button';
+            prevBtn.className = 'ydg-btn ydg-btn-ep ydg-disabled';
+            prevBtn.disabled = true;
+            prevBtn.innerHTML = '⏮ 上一集';
+            prevBtn.title = '当前已是第一集';
+            toolbarLeft.appendChild(prevBtn);
+        }
+
+        // 2. 下一集按钮 (若存在)
+        if (info.nextUrl) {
+            const nextBtn = document.createElement('a');
+            nextBtn.className = 'ydg-btn ydg-btn-ep ydg-btn-next';
+            nextBtn.href = info.nextUrl;
+            nextBtn.innerHTML = '⏭ 下一集';
+            nextBtn.title = '点击播放下一集内容 (快捷键: Shift + N)';
+            toolbarLeft.appendChild(nextBtn);
+        }
+
+        // 3. 高速下载按钮
         const downloadBtn = document.createElement('a');
         downloadBtn.className = 'ydg-btn ydg-btn-primary';
         downloadBtn.href = info.url;
@@ -591,17 +669,7 @@
         downloadBtn.innerHTML = '⬇ 下载完整视频';
         downloadBtn.title = '直接从高速 CDN 下载原画 MP4';
 
-        // 2. 下一集按钮（如果存在）
-        if (info.nextUrl) {
-            const nextBtn = document.createElement('a');
-            nextBtn.className = 'ydg-btn ydg-btn-next';
-            nextBtn.href = info.nextUrl;
-            nextBtn.innerHTML = '⏭ 下一集';
-            nextBtn.title = '点击播放下一集内容';
-            toolbarLeft.appendChild(nextBtn);
-        }
-
-        // 3. 复制直链按钮
+        // 4. 复制直链按钮
         const copyBtn = document.createElement('button');
         copyBtn.type = 'button';
         copyBtn.className = 'ydg-btn';
@@ -682,7 +750,7 @@
         // 快捷键提示
         const shortcutsHint = document.createElement('span');
         shortcutsHint.className = 'ydg-shortcuts-hint';
-        shortcutsHint.title = '空格: 播放/暂停\n←/→: 快退/快进 5s (按住Shift: 10s)\n↑/↓: 调节音量\nF: 全屏切换\nM: 静音切换';
+        shortcutsHint.title = '空格: 播放/暂停\n←/→: 快退/快进 5s (按住Shift: 10s)\n↑/↓: 调节音量\nF: 全屏切换\nM: 静音切换\nShift+P: 上一集\nShift+N: 下一集';
         shortcutsHint.textContent = '⌨ 快捷键';
 
         toolbarRight.appendChild(speedBox);
@@ -751,6 +819,24 @@
                 case 'KeyM':
                     e.preventDefault();
                     video.muted = !video.muted;
+                    break;
+                case 'KeyP':
+                    if (e.shiftKey) {
+                        const prevLink = document.querySelector('.ydg-btn-ep[href]:not(.ydg-disabled)');
+                        if (prevLink && prevLink.href) {
+                            e.preventDefault();
+                            window.location.href = prevLink.href;
+                        }
+                    }
+                    break;
+                case 'KeyN':
+                    if (e.shiftKey) {
+                        const nextLink = document.querySelector('.ydg-btn-next[href]');
+                        if (nextLink && nextLink.href) {
+                            e.preventDefault();
+                            window.location.href = nextLink.href;
+                        }
+                    }
                     break;
             }
         });
